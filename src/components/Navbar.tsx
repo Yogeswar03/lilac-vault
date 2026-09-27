@@ -19,7 +19,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenChat,
   onOpenProfile,
 }) => {
-  const { vault, currentUser, partnerUser, chatMessages, resetAllData } = useVault();
+  const { vault, currentUser, partnerUser, chatMessages, logoutUser } = useVault();
 
   // Calculate days together
   const daysTogether = React.useMemo(() => {
@@ -124,11 +124,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
             <button
               onClick={() => {
-                if (window.confirm('Reset capsule data or switch account?')) {
-                  resetAllData();
+                if (window.confirm(`Lock capsule & log out of ${currentUser?.name}? Your photos and chat will remain safely saved.`)) {
+                  logoutUser();
                 }
               }}
-              title="Reset / Switch Account"
+              title="Lock Capsule / Switch Profile"
               className="ml-1 p-1 text-purple-400 hover:text-purple-700 transition-colors"
             >
               <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />

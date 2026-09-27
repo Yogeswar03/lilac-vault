@@ -1,26 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Lock, Key, Users, ArrowRight, PlayCircle } from 'lucide-react';
+import { Sparkles, Lock, Key, Users, ArrowRight, PlayCircle, LogIn, CheckCircle } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { LavenderLogo } from './LavenderLogo';
 
 const AVATAR_OPTIONS = ['🪻', '☕', '🌿', '✨', '📸', '🌙', '🎨', '🧁', '🌊', '🍓', '🧸', '🌸'];
 
 export const OnboardingModal: React.FC<{ onOpenHowItWorks: () => void }> = ({ onOpenHowItWorks }) => {
-  const { createVault, joinVault, startDemoMode } = useVault();
-  const [tab, setTab] = useState<'create' | 'join' | 'demo'>('demo');
+  const { vault, createVault, joinVault, startDemoMode, loginUser, loginWithCode } = useVault();
+
+  // Tab state: 'profiles' | 'create' | 'join' | 'demo'
+  const [tab, setTab] = useState<'profiles' | 'create' | 'join' | 'demo'>(() => {
+    return vault ? 'profiles' : 'demo';
+  });
+
+  // Keep tab updated if vault is detected
+  useEffect(() => {
+    if (vault && tab !== 'create' && tab !== 'join' && tab !== 'demo') {
+      setTab('profiles');
+    }
+  }, [vault]);
 
   // Form states
   const [vaultName, setVaultName] = useState('Our Lavender Capsule ✨');
   const [hostName, setHostName] = useState('');
   const [hostAvatar, setHostAvatar] = useState('🪻');
 
-  const [accessCodeInput, setAccessCodeInput] = useState('');
+  const [accessCodeInput, setAccessCodeInput] = useState(vault?.accessCode || '');
   const [partnerName, setPartnerName] = useState('');
   const [partnerAvatar, setPartnerAvatar] = useState('☕');
 
   const [errorMessage, setErrorMessage] = useState('');
+  const [successNotice, setSuccessNotice] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // If user searched code on new device and found locked capsule, display profiles
+  const [codeMatchedUsers, setCodeMatchedUsers] = useState<Array<{ id: string; name: string; avatar: string; role: string }> | null>(null);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,22 +54,43 @@ export const OnboardingModal: React.FC<{ onOpenHowItWorks: () => void }> = ({ on
     }
   };
 
-  const handleJoin = async (e: React.FormEvent) => {
+  const handleVerifyCodeOrJoin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!accessCodeInput.trim()) {
-      setErrorMessage('Please enter the 6-character access code!');
+    const code = accessCodeInput.trim().toUpperCase();
+    if (!code) {
+      setErrorMessage('Please enter the 6-character access code (e.g. LILAC-777)!');
       return;
     }
-    if (!partnerName.trim()) {
-      setErrorMessage('Please enter your nickname!');
-      return;
-    }
+
     setErrorMessage('');
     setIsSubmitting(true);
+
     try {
-      const res = await joinVault(accessCodeInput.trim(), partnerName, partnerAvatar);
-      if (!res.success) {
-        setErrorMessage(res.error || 'Could not join capsule.');
+      // Step 1: Check code against server
+      const codeResult = await loginWithCode(code);
+      if (!codeResult.success || !codeResult.users) {
+        setErrorMessage(codeResult.error || 'Access code not found. Please verify the code.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // If capsule already has 2 members, prompt to choose which profile is logging in
+      if (codeResult.users.length >= 2) {
+        setCodeMatchedUsers(codeResult.users);
+        setSuccessNotice('Capsule found! Tap your profile to log in:');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // If capsule has 1 member (Host), and user provided partnerName -> proceed to join
+      if (partnerName.trim()) {
+        const joinResult = await joinVault(code, partnerName.trim(), partnerAvatar);
+        if (!joinResult.success) {
+          setErrorMessage(joinResult.error || 'Could not join capsule.');
+        }
+      } else {
+        // Prompt them to enter their nickname to finish pairing
+        setSuccessNotice(`Capsule verified! Enter your nickname below to join with ${codeResult.users[0]?.name}.`);
       }
     } catch {
       setErrorMessage('An unexpected error occurred. Please try again.');
@@ -64,27 +100,27 @@ export const OnboardingModal: React.FC<{ onOpenHowItWorks: () => void }> = ({ on
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-lavender-950/60 backdrop-blur-md overflow-y-auto py-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-lavender-950/65 backdrop-blur-md overflow-y-auto min-h-[100dvh]">
       <motion.div
-        initial={{ opacity: 0, scale: 0.92, y: 20 }}
+        initial={{ opacity: 0, scale: 0.94, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="w-full max-w-lg glass-card rounded-3xl p-5 sm:p-8 shadow-2xl relative border border-lavender-200 max-h-[92vh] overflow-y-auto my-auto"
+        className="w-full max-w-md glass-card rounded-3xl p-5 sm:p-7 shadow-2xl relative border border-lavender-200/90 my-auto max-h-[92dvh] overflow-y-auto"
       >
-        {/* Soft corner glows */}
+        {/* Soft corner glow lights */}
         <div className="absolute -top-16 -right-16 w-36 h-36 bg-purple-300/30 rounded-full blur-2xl pointer-events-none" />
         <div className="absolute -bottom-16 -left-16 w-36 h-36 bg-indigo-300/30 rounded-full blur-2xl pointer-events-none" />
 
-        {/* Minimalist Logo Header */}
-        <div className="text-center mb-5 sm:mb-6">
-          <div className="inline-flex items-center justify-center mb-2.5">
-            <LavenderLogo size={52} />
+        {/* Minimalist Lavender Brand Header */}
+        <div className="text-center mb-5">
+          <div className="inline-flex items-center justify-center mb-2">
+            <LavenderLogo size={48} />
           </div>
-          <h2 className="text-xl sm:text-3xl font-bold font-cute text-purple-950 tracking-tight flex items-center justify-center gap-1.5">
+          <h2 className="text-2xl sm:text-3xl font-bold font-cute text-purple-950 tracking-tight flex items-center justify-center gap-1.5">
             <span>LilacVault</span>
             <span className="text-lg">✨</span>
           </h2>
-          <p className="text-xs sm:text-sm text-purple-800/80 mt-1 max-w-xs mx-auto">
-            A private, aesthetic memory capsule strictly reserved for <strong className="text-purple-900">two people</strong>.
+          <p className="text-xs text-purple-800/80 mt-1 max-w-xs mx-auto">
+            A private memory capsule strictly reserved for <strong className="text-purple-900 font-bold">two people</strong>.
           </p>
 
           <div className="mt-2.5 flex items-center justify-center gap-2">
@@ -96,54 +132,148 @@ export const OnboardingModal: React.FC<{ onOpenHowItWorks: () => void }> = ({ on
               onClick={onOpenHowItWorks}
               className="text-[11px] text-purple-700 font-semibold underline hover:text-purple-950 ml-1"
             >
-              See how it works
+              How it works
             </button>
           </div>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex p-1 bg-lavender-100/90 rounded-2xl mb-5 border border-lavender-200 text-[11px] sm:text-xs font-bold">
+        <div className="flex p-1 bg-lavender-100/90 rounded-2xl mb-4 border border-lavender-200 text-xs font-bold">
+          {vault && (
+            <button
+              onClick={() => { setTab('profiles'); setErrorMessage(''); setSuccessNotice(''); }}
+              className={`flex-1 py-2 px-1 rounded-xl transition-all flex items-center justify-center gap-1 ${
+                tab === 'profiles'
+                  ? 'bg-white text-purple-950 shadow-xs'
+                  : 'text-purple-700 hover:text-purple-950'
+              }`}
+            >
+              <LogIn className="w-3.5 h-3.5 text-purple-600" />
+              <span>Login</span>
+            </button>
+          )}
+
           <button
-            onClick={() => { setTab('demo'); setErrorMessage(''); }}
+            onClick={() => { setTab('demo'); setErrorMessage(''); setSuccessNotice(''); }}
             className={`flex-1 py-2 px-1 rounded-xl transition-all flex items-center justify-center gap-1 ${
               tab === 'demo'
-                ? 'bg-white text-purple-950 shadow-sm'
+                ? 'bg-white text-purple-950 shadow-xs'
                 : 'text-purple-700 hover:text-purple-950'
             }`}
           >
-            <Sparkles className="w-3 h-3 text-purple-600" />
+            <Sparkles className="w-3.5 h-3.5 text-purple-600" />
             <span>Showcase</span>
           </button>
+
           <button
-            onClick={() => { setTab('create'); setErrorMessage(''); }}
+            onClick={() => { setTab('create'); setErrorMessage(''); setSuccessNotice(''); }}
             className={`flex-1 py-2 px-1 rounded-xl transition-all flex items-center justify-center gap-1 ${
               tab === 'create'
-                ? 'bg-white text-purple-950 shadow-sm'
+                ? 'bg-white text-purple-950 shadow-xs'
                 : 'text-purple-700 hover:text-purple-950'
             }`}
           >
-            <Key className="w-3 h-3 text-purple-600" />
+            <Key className="w-3.5 h-3.5 text-purple-600" />
             <span>Create</span>
           </button>
+
           <button
-            onClick={() => { setTab('join'); setErrorMessage(''); }}
+            onClick={() => { setTab('join'); setErrorMessage(''); setSuccessNotice(''); }}
             className={`flex-1 py-2 px-1 rounded-xl transition-all flex items-center justify-center gap-1 ${
               tab === 'join'
-                ? 'bg-white text-purple-950 shadow-sm'
+                ? 'bg-white text-purple-950 shadow-xs'
                 : 'text-purple-700 hover:text-purple-950'
             }`}
           >
-            <Users className="w-3 h-3 text-purple-600" />
+            <Users className="w-3.5 h-3.5 text-purple-600" />
             <span>Join Code</span>
           </button>
         </div>
 
-        {/* Error Alert */}
+        {/* Feedback alerts */}
         {errorMessage && (
-          <div className="mb-4 p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs sm:text-sm flex items-center gap-2">
+          <div className="mb-3.5 p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
             <span>⚠️</span>
             <span>{errorMessage}</span>
           </div>
+        )}
+
+        {successNotice && (
+          <div className="mb-3.5 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+            <span>{successNotice}</span>
+          </div>
+        )}
+
+        {/* Tab 0: Active Capsule / Profiles Login */}
+        {tab === 'profiles' && vault && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-3.5"
+          >
+            <div className="p-3.5 rounded-2xl bg-lavender-50/90 border border-lavender-200 text-purple-950 text-xs">
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <span className="font-bold text-purple-950 text-sm truncate">{vault.name}</span>
+                <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-bold flex-shrink-0">
+                  {vault.isLocked ? 'Strictly 2 Paired' : '1/2 Waiting'}
+                </span>
+              </div>
+              <p className="text-purple-700">
+                Access Code: <code className="font-mono font-bold bg-white px-1.5 py-0.5 rounded text-purple-900 border border-lavender-200">{vault.accessCode}</code>
+              </p>
+            </div>
+
+            <div className="text-xs font-bold text-purple-900 uppercase tracking-wider text-left pt-1">
+              Select Your Profile to Enter:
+            </div>
+
+            <div className="space-y-2">
+              {vault.users.map((user) => (
+                <motion.button
+                  key={user.id}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => loginUser(user.id)}
+                  className="w-full p-3 rounded-2xl bg-white hover:bg-lavender-50 border border-lavender-200 hover:border-purple-500 shadow-xs flex items-center gap-3 transition-all text-left group"
+                >
+                  <span className="text-2xl w-10 h-10 rounded-xl bg-lavender-100 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                    {user.avatar}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold text-sm text-purple-950 truncate flex items-center gap-1.5">
+                      <span>{user.name}</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-100 text-purple-800 font-semibold capitalize">
+                        {user.role}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-purple-600 font-medium">
+                      Tap to enter memory capsule →
+                    </div>
+                  </div>
+                </motion.button>
+              ))}
+            </div>
+
+            {vault.users.length < 2 && (
+              <button
+                onClick={() => {
+                  setTab('join');
+                  setAccessCodeInput(vault.accessCode);
+                }}
+                className="w-full py-3 rounded-2xl bg-gradient-to-r from-purple-700 via-lavender-600 to-indigo-700 text-white font-bold text-xs shadow-cute hover:shadow-glow flex items-center justify-center gap-2 transition-all mt-2"
+              >
+                <Users className="w-4 h-4" />
+                <span>+ Join as Friend 2 (Partner)</span>
+              </button>
+            )}
+
+            <div className="pt-2 text-center">
+              <span className="text-[11px] text-purple-600">
+                Returning device? Your session auto-resumes next time you open the app!
+              </span>
+            </div>
+          </motion.div>
         )}
 
         {/* Tab 1: Instant Showcase Demo Mode */}
@@ -182,10 +312,10 @@ export const OnboardingModal: React.FC<{ onOpenHowItWorks: () => void }> = ({ on
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             onSubmit={handleCreate}
-            className="space-y-4 text-left"
+            className="space-y-3.5 text-left"
           >
             <div>
-              <label className="block text-xs font-bold text-purple-900 uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-bold text-purple-900 uppercase tracking-wider mb-1">
                 Capsule Name
               </label>
               <input
@@ -193,12 +323,12 @@ export const OnboardingModal: React.FC<{ onOpenHowItWorks: () => void }> = ({ on
                 value={vaultName}
                 onChange={(e) => setVaultName(e.target.value)}
                 placeholder="e.g. Our Lavender Capsule ✨"
-                className="w-full px-4 py-2.5 rounded-xl border border-lavender-300 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/90 text-purple-950 text-sm"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-lavender-300 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/90 text-purple-950 text-base"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-purple-900 uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-bold text-purple-900 uppercase tracking-wider mb-1">
                 Your Nickname
               </label>
               <input
@@ -206,24 +336,24 @@ export const OnboardingModal: React.FC<{ onOpenHowItWorks: () => void }> = ({ on
                 value={hostName}
                 onChange={(e) => setHostName(e.target.value)}
                 placeholder="e.g. Elena 🪻"
-                className="w-full px-4 py-2.5 rounded-xl border border-lavender-300 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/90 text-purple-950 text-sm"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-lavender-300 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/90 text-purple-950 text-base"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-purple-900 uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-bold text-purple-900 uppercase tracking-wider mb-1">
                 Choose Your Avatar
               </label>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-6 gap-2">
                 {AVATAR_OPTIONS.map((emoji) => (
                   <button
                     key={emoji}
                     type="button"
                     onClick={() => setHostAvatar(emoji)}
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg transition-transform ${
+                    className={`h-9 rounded-xl flex items-center justify-center text-lg transition-transform ${
                       hostAvatar === emoji
-                        ? 'bg-purple-700 text-white scale-110 shadow-cute'
+                        ? 'bg-purple-700 text-white scale-105 shadow-cute'
                         : 'bg-white/80 hover:bg-lavender-100 text-purple-900 border border-lavender-200'
                     }`}
                   >
@@ -247,75 +377,114 @@ export const OnboardingModal: React.FC<{ onOpenHowItWorks: () => void }> = ({ on
           </motion.form>
         )}
 
-        {/* Tab 3: Join Friend */}
+        {/* Tab 3: Join Friend / Code Login */}
         {tab === 'join' && (
-          <motion.form
+          <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            onSubmit={handleJoin}
-            className="space-y-4 text-left"
+            className="space-y-3.5 text-left"
           >
-            <div>
-              <label className="block text-xs font-bold text-purple-900 uppercase tracking-wider mb-1.5">
-                Friend's Access Code
-              </label>
-              <input
-                type="text"
-                value={accessCodeInput}
-                onChange={(e) => setAccessCodeInput(e.target.value.toUpperCase())}
-                placeholder="e.g. LILAC-777"
-                className="w-full px-4 py-2.5 rounded-xl border border-lavender-300 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/90 text-purple-950 font-mono tracking-widest text-center text-base"
-                required
-              />
-              <span className="text-[11px] text-purple-600 mt-1 block">
-                Enter the 6-character code provided by your friend.
-              </span>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-purple-900 uppercase tracking-wider mb-1.5">
-                Your Nickname
-              </label>
-              <input
-                type="text"
-                value={partnerName}
-                onChange={(e) => setPartnerName(e.target.value)}
-                placeholder="e.g. Liam ☕"
-                className="w-full px-4 py-2.5 rounded-xl border border-lavender-300 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/90 text-purple-950 text-sm"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-purple-900 uppercase tracking-wider mb-1.5">
-                Choose Your Avatar
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {AVATAR_OPTIONS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    type="button"
-                    onClick={() => setPartnerAvatar(emoji)}
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg transition-transform ${
-                      partnerAvatar === emoji
-                        ? 'bg-purple-700 text-white scale-110 shadow-cute'
-                        : 'bg-white/80 hover:bg-lavender-100 text-purple-900 border border-lavender-200'
-                    }`}
-                  >
-                    {emoji}
-                  </button>
-                ))}
+            {/* If matching profiles found for a locked capsule */}
+            {codeMatchedUsers && codeMatchedUsers.length > 0 ? (
+              <div className="space-y-3">
+                <div className="text-xs font-bold text-purple-900 uppercase tracking-wider">
+                  Select Your Profile:
+                </div>
+                <div className="space-y-2">
+                  {codeMatchedUsers.map((user) => (
+                    <motion.button
+                      key={user.id}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => loginUser(user.id)}
+                      className="w-full p-3 rounded-2xl bg-white hover:bg-lavender-50 border border-lavender-200 hover:border-purple-500 shadow-xs flex items-center gap-3 transition-all text-left"
+                    >
+                      <span className="text-2xl w-10 h-10 rounded-xl bg-lavender-100 flex items-center justify-center flex-shrink-0">
+                        {user.avatar}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-sm text-purple-950 truncate">
+                          {user.name}
+                        </div>
+                        <div className="text-[11px] text-purple-600 font-medium">
+                          Log in as {user.name} →
+                        </div>
+                      </div>
+                    </motion.button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCodeMatchedUsers(null)}
+                  className="text-xs text-purple-700 underline text-center block w-full mt-2"
+                >
+                  Enter a different code
+                </button>
               </div>
-            </div>
+            ) : (
+              <form onSubmit={handleVerifyCodeOrJoin} className="space-y-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-purple-900 uppercase tracking-wider mb-1">
+                    Friend's Access Code
+                  </label>
+                  <input
+                    type="text"
+                    value={accessCodeInput}
+                    onChange={(e) => setAccessCodeInput(e.target.value.toUpperCase())}
+                    placeholder="e.g. LILAC-777"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-lavender-300 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/90 text-purple-950 font-mono tracking-widest text-center text-base"
+                    required
+                  />
+                  <span className="text-[11px] text-purple-600 mt-1 block">
+                    Enter the code provided by your friend to join or log in.
+                  </span>
+                </div>
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full py-3 rounded-2xl bg-gradient-to-r from-purple-700 via-lavender-600 to-indigo-700 text-white font-bold shadow-cute hover:shadow-glow flex items-center justify-center gap-2 text-sm transition-all"
-            >
-              {isSubmitting ? 'Verifying Code...' : 'Join Capsule & Lock In 🔒'}
-            </button>
-          </motion.form>
+                <div>
+                  <label className="block text-xs font-bold text-purple-900 uppercase tracking-wider mb-1">
+                    Your Nickname (if joining for first time)
+                  </label>
+                  <input
+                    type="text"
+                    value={partnerName}
+                    onChange={(e) => setPartnerName(e.target.value)}
+                    placeholder="e.g. Liam ☕"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-lavender-300 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/90 text-purple-950 text-base"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-purple-900 uppercase tracking-wider mb-1">
+                    Choose Your Avatar
+                  </label>
+                  <div className="grid grid-cols-6 gap-2">
+                    {AVATAR_OPTIONS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => setPartnerAvatar(emoji)}
+                        className={`h-9 rounded-xl flex items-center justify-center text-lg transition-transform ${
+                          partnerAvatar === emoji
+                            ? 'bg-purple-700 text-white scale-105 shadow-cute'
+                            : 'bg-white/80 hover:bg-lavender-100 text-purple-900 border border-lavender-200'
+                        }`}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-purple-700 via-lavender-600 to-indigo-700 text-white font-bold shadow-cute hover:shadow-glow flex items-center justify-center gap-2 text-sm transition-all"
+                >
+                  {isSubmitting ? 'Verifying Code...' : 'Connect to Capsule 🔒'}
+                </button>
+              </form>
+            )}
+          </motion.div>
         )}
       </motion.div>
     </div>

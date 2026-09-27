@@ -35,6 +35,9 @@ interface VaultContextType {
   deleteMemory: (memoryId: string) => Promise<void>;
   sendChatMessage: (text: string, type?: 'text' | 'sparkle_burst') => Promise<void>;
   updateUserProfile: (userId: string, newName: string, newAvatar: string) => Promise<void>;
+  loginUser: (userId: string) => void;
+  loginWithCode: (accessCode: string) => Promise<{ success: boolean; error?: string; users?: User[] }>;
+  logoutUser: () => void;
   triggerSparkleExplosion: () => void;
   resetAllData: () => Promise<void>;
 }
@@ -63,11 +66,18 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setChatMessages(allMsgs);
 
           const activeId = getActiveUserId();
-          const foundUser = storedVault.users.find((u) => u.id === activeId) || storedVault.users[0];
-          setCurrentUser(foundUser || null);
-
           const isDemo = localStorage.getItem('lilac_is_demo') === 'true';
           setIsDemoMode(isDemo);
+
+          const foundUser = storedVault.users.find((u) => u.id === activeId);
+          if (foundUser) {
+            setCurrentUser(foundUser);
+          } else if (isDemo && storedVault.users.length > 0) {
+            setCurrentUser(storedVault.users[0]);
+            dbSetActiveUserId(storedVault.users[0].id);
+          } else {
+            setCurrentUser(null);
+          }
         }
       } catch (err) {
         console.error('Error loading vault data:', err);
@@ -372,6 +382,44 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     triggerSparkleExplosion();
   };
 
+  // Direct login for existing user
+  const loginUser = (userId: string) => {
+    if (!vault) return;
+    const user = vault.users.find((u) => u.id === userId);
+    if (user) {
+      setCurrentUser(user);
+      dbSetActiveUserId(user.id);
+      triggerSparkleExplosion();
+    }
+  };
+
+  // Login using Access Code
+  const loginWithCode = async (accessCode: string): Promise<{ success: boolean; error?: string; users?: User[] }> => {
+    const remoteVault = await getVault();
+    if (!remoteVault) {
+      return { success: false, error: 'No active capsule found. Please create one first!' };
+    }
+
+    if (remoteVault.accessCode.trim().toUpperCase() !== accessCode.trim().toUpperCase()) {
+      return { success: false, error: 'Invalid access code. Please check your code!' };
+    }
+
+    setVault(remoteVault);
+    const allMems = await getAllMemories();
+    setMemories(allMems);
+    const allMsgs = await getAllChatMessages();
+    setChatMessages(allMsgs);
+
+    return { success: true, users: remoteVault.users };
+  };
+
+  // Logout active user session (preserves all data, locks view)
+  const logoutUser = () => {
+    setCurrentUser(null);
+    dbSetActiveUserId('');
+    localStorage.removeItem('lilac_active_user');
+  };
+
   // Reset Everything
   const resetAllData = async () => {
     await clearAllVaultData();
@@ -402,6 +450,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         deleteMemory,
         sendChatMessage,
         updateUserProfile,
+        loginUser,
+        loginWithCode,
+        logoutUser,
         triggerSparkleExplosion,
         resetAllData,
       }}
