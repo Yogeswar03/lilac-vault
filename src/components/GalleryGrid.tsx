@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, MessageCircle, Film, Heart } from 'lucide-react';
+import { Sparkles, MessageCircle, Film, Heart, LayoutGrid, Columns } from 'lucide-react';
 import { Memory } from '../types';
 import { useVault } from '../context/VaultContext';
 
@@ -16,6 +16,9 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
   const { memories, currentUser, partnerUser, toggleHeart } = useVault();
   const [filter, setFilter] = useState<'all' | 'photo' | 'video' | 'mine' | 'theirs' | 'starred'>('all');
   const [activeTag, setActiveTag] = useState<string | null>(null);
+
+  // Gallery view mode: 'grid' (aesthetic 2-4 columns) vs 'feed' (spacious polaroid cards)
+  const [layoutMode, setLayoutMode] = useState<'grid' | 'feed'>('grid');
 
   // Filter memories
   const filteredMemories = memories.filter((mem) => {
@@ -33,23 +36,24 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
 
   return (
     <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
-      {/* Filter Tabs Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+      {/* Filter and View Mode Switcher Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+        {/* Category Filters */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full no-scrollbar">
           <button
             onClick={() => { setFilter('all'); setActiveTag(null); }}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
               filter === 'all' && !activeTag
                 ? 'bg-purple-700 text-white shadow-cute'
                 : 'bg-white/80 hover:bg-lavender-100 text-purple-900 border border-lavender-200'
             }`}
           >
-            All Memories ({memories.length})
+            All ({memories.length})
           </button>
 
           <button
             onClick={() => { setFilter('starred'); setActiveTag(null); }}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1 ${
               filter === 'starred'
                 ? 'bg-purple-700 text-white shadow-cute'
                 : 'bg-white/80 hover:bg-lavender-100 text-purple-800 border border-lavender-200'
@@ -61,7 +65,7 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
 
           <button
             onClick={() => { setFilter('video'); setActiveTag(null); }}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1 ${
               filter === 'video'
                 ? 'bg-purple-700 text-white shadow-cute'
                 : 'bg-white/80 hover:bg-lavender-100 text-purple-900 border border-lavender-200'
@@ -74,52 +78,84 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
           {currentUser && (
             <button
               onClick={() => { setFilter('mine'); setActiveTag(null); }}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
                 filter === 'mine'
                   ? 'bg-purple-700 text-white shadow-cute'
                   : 'bg-white/80 hover:bg-lavender-100 text-purple-900 border border-lavender-200'
               }`}
             >
-              By {currentUser.name}
+              By {currentUser.name.split(' ')[0]}
             </button>
           )}
 
           {partnerUser && (
             <button
               onClick={() => { setFilter('theirs'); setActiveTag(null); }}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
                 filter === 'theirs'
                   ? 'bg-purple-700 text-white shadow-cute'
                   : 'bg-white/80 hover:bg-lavender-100 text-purple-900 border border-lavender-200'
               }`}
             >
-              By {partnerUser.name}
+              By {partnerUser.name.split(' ')[0]}
             </button>
           )}
         </div>
 
-        {/* Tag chips */}
-        {allTags.length > 0 && (
-          <div className="flex items-center gap-1 text-xs overflow-x-auto pb-1">
-            <span className="text-purple-400 font-bold mr-1">#</span>
-            {allTags.map((tag) => (
-              <button
-                key={tag}
-                onClick={() => setActiveTag(activeTag === tag ? null : tag)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
-                  activeTag === tag
-                    ? 'bg-purple-800 text-white'
-                    : 'bg-lavender-100/80 text-purple-800 hover:bg-lavender-200'
-                }`}
-              >
-                {tag}
-              </button>
-            ))}
+        {/* View Layout Toggle: Gallery Grid vs Polaroid Feed */}
+        <div className="flex items-center gap-2">
+          {/* Tag chips */}
+          {allTags.length > 0 && (
+            <div className="hidden md:flex items-center gap-1 text-xs">
+              <span className="text-purple-400 font-bold mr-1">#</span>
+              {allTags.slice(0, 4).map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => setActiveTag(activeTag === tag ? null : tag)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                    activeTag === tag
+                      ? 'bg-purple-800 text-white'
+                      : 'bg-lavender-100/80 text-purple-800 hover:bg-lavender-200'
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Grid / Feed Toggle Buttons */}
+          <div className="flex items-center p-1 bg-lavender-100/90 rounded-2xl border border-lavender-200 shadow-2xs">
+            <button
+              onClick={() => setLayoutMode('grid')}
+              className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${
+                layoutMode === 'grid'
+                  ? 'bg-white text-purple-950 shadow-xs'
+                  : 'text-purple-700 hover:text-purple-950'
+              }`}
+              title="Aesthetic Gallery Grid (2-4 columns)"
+            >
+              <LayoutGrid className="w-3.5 h-3.5 text-purple-600" />
+              <span>Gallery</span>
+            </button>
+
+            <button
+              onClick={() => setLayoutMode('feed')}
+              className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${
+                layoutMode === 'feed'
+                  ? 'bg-white text-purple-950 shadow-xs'
+                  : 'text-purple-700 hover:text-purple-950'
+              }`}
+              title="Polaroid Story Cards"
+            >
+              <Columns className="w-3.5 h-3.5 text-purple-600" />
+              <span className="hidden sm:inline">Polaroid</span>
+            </button>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Grid Content */}
+      {/* Empty State */}
       {filteredMemories.length === 0 ? (
         <div className="p-12 text-center glass-card rounded-3xl border border-dashed border-lavender-300 my-8">
           <div className="text-4xl mb-3">🪻</div>
@@ -134,10 +170,95 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
             <span>+ Upload Photo or Video</span>
           </button>
         </div>
-      ) : (
+      ) : layoutMode === 'grid' ? (
+        /* MODE 1: AESTHETIC MULTI-COLUMN GALLERY GRID (2 cols on mobile, 4-5 on desktop) */
         <motion.div
           layout
-          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5"
+          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-4"
+        >
+          <AnimatePresence>
+            {filteredMemories.map((memory) => {
+              const isLiked = currentUser && memory.hearts.includes(currentUser.id);
+              return (
+                <motion.div
+                  key={memory.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.94 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.25 }}
+                  className="group relative cursor-pointer"
+                  onClick={() => onSelectMemory(memory)}
+                >
+                  <div className="relative aspect-[4/5] w-full rounded-2xl overflow-hidden bg-purple-100/50 border border-lavender-200/90 shadow-2xs group-hover:shadow-cute transition-all duration-300">
+                    {/* Media item */}
+                    {memory.type === 'video' ? (
+                      <div className="relative w-full h-full">
+                        <video
+                          src={memory.mediaUrl}
+                          className="w-full h-full object-cover"
+                          muted
+                          playsInline
+                          loop
+                        />
+                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                          <div className="w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-xs text-purple-800">
+                            <Film className="w-4 h-4 ml-0.5" />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <img
+                        src={memory.mediaUrl}
+                        alt={memory.caption}
+                        loading="lazy"
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    )}
+
+                    {/* Top Uploader Avatar Pill */}
+                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-black/40 backdrop-blur-md text-[10px] font-bold text-white flex items-center gap-1 border border-white/20">
+                      <span>{memory.uploaderAvatar}</span>
+                      <span className="truncate max-w-[60px] sm:max-w-none">{memory.uploaderName.split(' ')[0]}</span>
+                    </div>
+
+                    {/* AI Mood Sticker */}
+                    {memory.aiMood && (
+                      <div className="hidden sm:flex absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-purple-900/60 backdrop-blur-md text-[9px] font-bold text-yellow-300 items-center gap-0.5 border border-purple-300/30">
+                        <Sparkles className="w-2.5 h-2.5" />
+                      </div>
+                    )}
+
+                    {/* Bottom Scrim with Caption and Heart */}
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent p-2.5 pt-6 text-white flex items-end justify-between gap-1.5">
+                      <p className="text-[11px] sm:text-xs font-semibold font-cute line-clamp-1 truncate flex-1">
+                        {memory.caption}
+                      </p>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleHeart(memory.id);
+                        }}
+                        className={`p-1.5 rounded-full backdrop-blur-md transition-transform active:scale-125 flex-shrink-0 flex items-center gap-0.5 text-[10px] font-bold ${
+                          isLiked ? 'text-rose-400 bg-white/20' : 'text-white/80 hover:text-white'
+                        }`}
+                      >
+                        <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-rose-400' : 'fill-none'}`} />
+                        {memory.hearts.length > 0 && <span>{memory.hearts.length}</span>}
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </motion.div>
+      ) : (
+        /* MODE 2: POLAROID STORY FEED (Detailed cards) */
+        <motion.div
+          layout
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
         >
           <AnimatePresence>
             {filteredMemories.map((memory) => {
@@ -152,24 +273,24 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
                   transition={{ duration: 0.3 }}
                   className="flex flex-col"
                 >
-                  <div className="polaroid-frame rounded-2xl cursor-pointer group relative overflow-hidden bg-white h-full flex flex-col justify-between">
+                  <div className="polaroid-frame rounded-3xl cursor-pointer group relative overflow-hidden bg-white h-full flex flex-col justify-between shadow-cute">
                     {/* Media Container with Consistent 4:5 Aspect Ratio */}
                     <div
                       onClick={() => onSelectMemory(memory)}
-                      className="relative overflow-hidden rounded-xl bg-purple-100/50 aspect-[4/5] w-full flex-shrink-0"
+                      className="relative overflow-hidden rounded-2xl bg-purple-100/50 aspect-[4/5] w-full flex-shrink-0"
                     >
                       {memory.type === 'video' ? (
                         <div className="relative w-full h-full">
                           <video
                             src={memory.mediaUrl}
-                            className="w-full h-full object-cover rounded-xl"
+                            className="w-full h-full object-cover rounded-2xl"
                             muted
                             playsInline
                             loop
                           />
                           <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                            <div className="w-10 h-10 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-cute text-purple-800">
-                              <Film className="w-5 h-5 ml-0.5" />
+                            <div className="w-12 h-12 rounded-full bg-white/85 backdrop-blur-sm flex items-center justify-center shadow-cute text-purple-800">
+                              <Film className="w-6 h-6 ml-0.5" />
                             </div>
                           </div>
                         </div>
@@ -178,28 +299,28 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
                           src={memory.mediaUrl}
                           alt={memory.caption}
                           loading="lazy"
-                          className="w-full h-full object-cover rounded-xl transition-transform duration-500 group-hover:scale-105"
+                          className="w-full h-full object-cover rounded-2xl transition-transform duration-500 group-hover:scale-105"
                         />
                       )}
 
                       {/* AI Mood Sticker Badge */}
                       {memory.aiMood && (
-                        <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-black/50 backdrop-blur-md text-[10px] font-bold text-white flex items-center gap-1 border border-white/20">
+                        <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-md text-[10px] font-bold text-white flex items-center gap-1 border border-white/20">
                           <Sparkles className="w-2.5 h-2.5 text-yellow-300" />
                           <span>{memory.aiMood}</span>
                         </div>
                       )}
 
-                      {/* Quick Favorite Reaction Button */}
+                      {/* Favorite Button */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           toggleHeart(memory.id);
                         }}
-                        className={`absolute bottom-2 right-2 p-2 rounded-full backdrop-blur-md transition-transform active:scale-125 shadow-sm ${
+                        className={`absolute bottom-2.5 right-2.5 p-2 rounded-full backdrop-blur-md transition-transform active:scale-125 shadow-sm ${
                           isLiked
                             ? 'bg-purple-700 text-white'
-                            : 'bg-white/80 text-purple-600 hover:bg-white'
+                            : 'bg-white/85 text-purple-600 hover:bg-white'
                         }`}
                         title="Favorite this memory"
                       >
@@ -210,13 +331,13 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
                     {/* Polaroid Bottom Caption Area */}
                     <div
                       onClick={() => onSelectMemory(memory)}
-                      className="pt-3 px-1"
+                      className="pt-3.5 px-1.5"
                     >
-                      <p className="text-xs sm:text-sm font-semibold text-purple-950 font-cute leading-snug line-clamp-2">
+                      <p className="text-sm font-semibold text-purple-950 font-cute leading-snug line-clamp-2">
                         {memory.caption}
                       </p>
 
-                      <div className="mt-2 pt-2 border-t border-lavender-100 flex items-center justify-between text-[11px] text-purple-500">
+                      <div className="mt-2.5 pt-2.5 border-t border-lavender-100 flex items-center justify-between text-[11px] text-purple-500">
                         <div className="flex items-center gap-1.5 font-medium">
                           <span>{memory.uploaderAvatar}</span>
                           <span className="text-purple-900 font-semibold">{memory.uploaderName}</span>
