@@ -1,4 +1,15 @@
 import { Vault, User, Memory, ChatMessage } from '../types';
+import {
+  isSupabaseConfigured,
+  supabaseSaveVault,
+  supabaseGetVault,
+  supabaseSaveMemory,
+  supabaseGetAllMemories,
+  supabaseDeleteMemory,
+  supabaseSaveChatMessage,
+  supabaseGetAllChatMessages,
+  supabaseResetAll,
+} from './supabase';
 
 const DB_NAME = 'LilacVault_App_DB';
 const DB_VERSION = 1;
@@ -78,16 +89,24 @@ export function readVideoFile(file: File): Promise<string> {
   });
 }
 
-// Save Vault (API + IndexedDB)
+// Save Vault (Supabase Cloud + Local API + IndexedDB)
 export async function saveVault(vault: Vault): Promise<void> {
-  try {
-    await fetch('/api/vault', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ vault }),
-    });
-  } catch {
-    // offline fallback
+  if (isSupabaseConfigured) {
+    try {
+      await supabaseSaveVault(vault);
+    } catch (e) {
+      console.error('Supabase save vault error, falling back to local:', e);
+    }
+  } else {
+    try {
+      await fetch('/api/vault', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vault }),
+      });
+    } catch {
+      // offline fallback
+    }
   }
 
   const db = await openDB();
@@ -100,22 +119,35 @@ export async function saveVault(vault: Vault): Promise<void> {
   });
 }
 
-// Get Vault (API first, then IndexedDB)
+// Get Vault (Supabase Cloud first, then Local API, then IndexedDB)
 export async function getVault(): Promise<Vault | null> {
-  try {
-    const res = await fetch('/api/vault');
-    if (res.ok) {
-      const data = await res.json();
-      if (data.vault) {
-        // Cache to IndexedDB
+  if (isSupabaseConfigured) {
+    try {
+      const cloudVault = await supabaseGetVault();
+      if (cloudVault) {
         const db = await openDB();
         const tx = db.transaction(STORE_VAULT, 'readwrite');
-        tx.objectStore(STORE_VAULT).put(data.vault);
-        return data.vault;
+        tx.objectStore(STORE_VAULT).put(cloudVault);
+        return cloudVault;
       }
+    } catch (e) {
+      console.error('Supabase fetch vault error, falling back:', e);
     }
-  } catch {
-    // offline fallback
+  } else {
+    try {
+      const res = await fetch('/api/vault');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.vault) {
+          const db = await openDB();
+          const tx = db.transaction(STORE_VAULT, 'readwrite');
+          tx.objectStore(STORE_VAULT).put(data.vault);
+          return data.vault;
+        }
+      }
+    } catch {
+      // offline fallback
+    }
   }
 
   const db = await openDB();
@@ -134,16 +166,24 @@ export async function getVault(): Promise<Vault | null> {
   });
 }
 
-// Save Memory (API + IndexedDB)
+// Save Memory (Supabase Cloud + Local API + IndexedDB)
 export async function saveMemory(memory: Memory): Promise<void> {
-  try {
-    await fetch('/api/memories', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ memory }),
-    });
-  } catch {
-    // offline fallback
+  if (isSupabaseConfigured) {
+    try {
+      await supabaseSaveMemory(memory);
+    } catch (e) {
+      console.error('Supabase save memory error, falling back:', e);
+    }
+  } else {
+    try {
+      await fetch('/api/memories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memory }),
+      });
+    } catch {
+      // offline fallback
+    }
   }
 
   const db = await openDB();
@@ -156,24 +196,37 @@ export async function saveMemory(memory: Memory): Promise<void> {
   });
 }
 
-// Get All Memories (API first, then IndexedDB)
+// Get All Memories (Supabase Cloud first, then Local API, then IndexedDB)
 export async function getAllMemories(): Promise<Memory[]> {
-  try {
-    const res = await fetch('/api/memories');
-    if (res.ok) {
-      const data = await res.json();
-      if (data.memories) {
-        const items = data.memories as Memory[];
-        items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        // Cache to IndexedDB
+  if (isSupabaseConfigured) {
+    try {
+      const cloudMems = await supabaseGetAllMemories();
+      if (cloudMems && cloudMems.length > 0) {
         const db = await openDB();
         const tx = db.transaction(STORE_MEMORIES, 'readwrite');
-        items.forEach((m) => tx.objectStore(STORE_MEMORIES).put(m));
-        return items;
+        cloudMems.forEach((m) => tx.objectStore(STORE_MEMORIES).put(m));
+        return cloudMems;
       }
+    } catch (e) {
+      console.error('Supabase fetch memories error, falling back:', e);
     }
-  } catch {
-    // offline fallback
+  } else {
+    try {
+      const res = await fetch('/api/memories');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.memories) {
+          const items = data.memories as Memory[];
+          items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          const db = await openDB();
+          const tx = db.transaction(STORE_MEMORIES, 'readwrite');
+          items.forEach((m) => tx.objectStore(STORE_MEMORIES).put(m));
+          return items;
+        }
+      }
+    } catch {
+      // offline fallback
+    }
   }
 
   const db = await openDB();
@@ -192,10 +245,18 @@ export async function getAllMemories(): Promise<Memory[]> {
 
 // Delete Memory
 export async function deleteMemory(id: string): Promise<void> {
-  try {
-    await fetch(`/api/memories/${id}`, { method: 'DELETE' });
-  } catch {
-    // offline fallback
+  if (isSupabaseConfigured) {
+    try {
+      await supabaseDeleteMemory(id);
+    } catch (e) {
+      console.error('Supabase delete memory error, falling back:', e);
+    }
+  } else {
+    try {
+      await fetch(`/api/memories/${id}`, { method: 'DELETE' });
+    } catch {
+      // offline fallback
+    }
   }
 
   const db = await openDB();
@@ -208,16 +269,24 @@ export async function deleteMemory(id: string): Promise<void> {
   });
 }
 
-// Chat Messages Methods (API + IndexedDB)
+// Chat Messages Methods (Supabase Cloud + Local API + IndexedDB)
 export async function saveChatMessage(message: ChatMessage): Promise<void> {
-  try {
-    await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message }),
-    });
-  } catch {
-    // offline fallback
+  if (isSupabaseConfigured) {
+    try {
+      await supabaseSaveChatMessage(message);
+    } catch (e) {
+      console.error('Supabase save chat message error, falling back:', e);
+    }
+  } else {
+    try {
+      await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      });
+    } catch {
+      // offline fallback
+    }
   }
 
   const db = await openDB();
@@ -231,18 +300,29 @@ export async function saveChatMessage(message: ChatMessage): Promise<void> {
 }
 
 export async function getAllChatMessages(): Promise<ChatMessage[]> {
-  try {
-    const res = await fetch('/api/chat');
-    if (res.ok) {
-      const data = await res.json();
-      if (data.messages) {
-        const items = data.messages as ChatMessage[];
-        items.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-        return items;
+  if (isSupabaseConfigured) {
+    try {
+      const cloudMsgs = await supabaseGetAllChatMessages();
+      if (cloudMsgs && cloudMsgs.length > 0) {
+        return cloudMsgs;
       }
+    } catch (e) {
+      console.error('Supabase fetch chat messages error, falling back:', e);
     }
-  } catch {
-    // offline fallback
+  } else {
+    try {
+      const res = await fetch('/api/chat');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.messages) {
+          const items = data.messages as ChatMessage[];
+          items.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+          return items;
+        }
+      }
+    } catch {
+      // offline fallback
+    }
   }
 
   const db = await openDB();
@@ -270,10 +350,18 @@ export function getActiveUserId(): string | null {
 
 // Clear all data (for reset)
 export async function clearAllVaultData(): Promise<void> {
-  try {
-    await fetch('/api/reset', { method: 'POST' });
-  } catch {
-    // offline fallback
+  if (isSupabaseConfigured) {
+    try {
+      await supabaseResetAll();
+    } catch (e) {
+      console.error('Supabase reset all error, falling back:', e);
+    }
+  } else {
+    try {
+      await fetch('/api/reset', { method: 'POST' });
+    } catch {
+      // offline fallback
+    }
   }
 
   const db = await openDB();

@@ -16,6 +16,7 @@ import {
   seedDemoData,
   clearAllVaultData,
 } from '../services/storage';
+import { isSupabaseConfigured, supabaseSubscribeToChanges } from '../services/supabase';
 
 interface VaultContextType {
   vault: Vault | null;
@@ -87,7 +88,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     loadData();
 
-    // Background sync across mobile & desktop
+    // Background sync polling fallback across mobile & desktop
     const interval = setInterval(async () => {
       try {
         const remoteVault = await getVault();
@@ -118,7 +119,29 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }, 2500);
 
-    return () => clearInterval(interval);
+    // Subscribe to instant Supabase realtime WebSocket events if configured
+    let unsubscribeRealtime = () => {};
+    if (isSupabaseConfigured) {
+      unsubscribeRealtime = supabaseSubscribeToChanges({
+        onVaultChange: async () => {
+          const v = await getVault();
+          if (v) setVault(v);
+        },
+        onMemoryChange: async () => {
+          const m = await getAllMemories();
+          setMemories(m);
+        },
+        onChatChange: async () => {
+          const c = await getAllChatMessages();
+          setChatMessages(c);
+        },
+      });
+    }
+
+    return () => {
+      clearInterval(interval);
+      unsubscribeRealtime();
+    };
   }, []);
 
   const partnerUser = vault?.users.find((u) => u.id !== currentUser?.id) || null;
