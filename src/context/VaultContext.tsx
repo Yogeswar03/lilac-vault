@@ -114,7 +114,11 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           });
           const remoteMsgs = await getAllChatMessages();
           setChatMessages((prev) => {
-            if (prev.length !== remoteMsgs.length) {
+            if (remoteMsgs.length > prev.length) {
+              const newArrivals = remoteMsgs.slice(prev.length);
+              if (newArrivals.some((m) => m.type === 'sparkle_burst')) {
+                triggerSparkleExplosion();
+              }
               return remoteMsgs;
             }
             return prev;
@@ -139,7 +143,15 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         },
         onChatChange: async () => {
           const c = await getAllChatMessages();
-          setChatMessages(c);
+          setChatMessages((prev) => {
+            if (c.length > prev.length) {
+              const newArrivals = c.slice(prev.length);
+              if (newArrivals.some((m) => m.type === 'sparkle_burst')) {
+                triggerSparkleExplosion();
+              }
+            }
+            return c;
+          });
         },
       });
     }
@@ -152,14 +164,34 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const partnerUser = vault?.users.find((u) => u.id !== currentUser?.id) || null;
 
-  // Lavender & gold sparkle explosion helper
+  // Lavender, gold & rose sparkle explosion helper
   const triggerSparkleExplosion = () => {
-    confetti({
-      particleCount: 50,
-      spread: 80,
-      origin: { y: 0.6 },
-      colors: ['#AB7FED', '#C4B5FD', '#DDD6FE', '#9057E5', '#FDE047', '#FFFFFF'],
-    });
+    try {
+      confetti({
+        particleCount: 70,
+        spread: 90,
+        origin: { y: 0.6 },
+        colors: ['#A78BFA', '#C084FC', '#F472B6', '#FDE047', '#E9D5FF', '#38BDF8'],
+      });
+      setTimeout(() => {
+        confetti({
+          particleCount: 35,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0.1, y: 0.7 },
+          colors: ['#C084FC', '#FDE047', '#F472B6'],
+        });
+        confetti({
+          particleCount: 35,
+          angle: 120,
+          spread: 55,
+          origin: { x: 0.9, y: 0.7 },
+          colors: ['#A78BFA', '#FDE047', '#F472B6'],
+        });
+      }, 250);
+    } catch {
+      // quiet fallback
+    }
   };
 
   // Create a new vault as Host

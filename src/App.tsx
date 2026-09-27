@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { VaultProvider, useVault } from './context/VaultContext';
 import { Navbar } from './components/Navbar';
 import { HeroBanner } from './components/HeroBanner';
@@ -11,8 +12,10 @@ import { EditProfileModal } from './components/EditProfileModal';
 import { HowItWorksModal } from './components/HowItWorksModal';
 import { OnboardingModal } from './components/OnboardingModal';
 import { CloudSettingsModal } from './components/CloudSettingsModal';
+import { CuteCameraModal } from './components/CuteCameraModal';
 import { DemoSwitcherBar } from './components/DemoSwitcherBar';
 import { LavenderLogo } from './components/LavenderLogo';
+import { Camera } from 'lucide-react';
 import { Memory } from './types';
 
 const MainAppContent: React.FC = () => {
@@ -27,6 +30,7 @@ const MainAppContent: React.FC = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
   const [isCloudSettingsOpen, setIsCloudSettingsOpen] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
 
   if (isLoading) {
@@ -72,6 +76,7 @@ const MainAppContent: React.FC = () => {
           onOpenUpload={() => setIsUploadOpen(true)}
           onOpenReel={() => setIsReelOpen(true)}
           onOpenProfile={() => setIsProfileOpen(true)}
+          onOpenCamera={() => setIsCameraOpen(true)}
         />
       ) : (
         /* View 2: Memories Gallery & Hero */
@@ -84,6 +89,7 @@ const MainAppContent: React.FC = () => {
             onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
             onOpenProfile={() => setIsProfileOpen(true)}
             onOpenCloudSettings={() => setIsCloudSettingsOpen(true)}
+            onOpenCamera={() => setIsCameraOpen(true)}
           />
 
           <HeroBanner
@@ -91,6 +97,7 @@ const MainAppContent: React.FC = () => {
             onOpenReel={() => setIsReelOpen(true)}
             onOpenChat={() => setActiveView('chat')}
             onOpenProfile={() => setIsProfileOpen(true)}
+            onOpenCamera={() => setIsCameraOpen(true)}
           />
 
           <main className="flex-1">
@@ -106,6 +113,11 @@ const MainAppContent: React.FC = () => {
       <UploadModal
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
+      />
+
+      <CuteCameraModal
+        isOpen={isCameraOpen}
+        onClose={() => setIsCameraOpen(false)}
       />
 
       <AIReelModal
@@ -133,6 +145,21 @@ const MainAppContent: React.FC = () => {
         isOpen={isCloudSettingsOpen}
         onClose={() => setIsCloudSettingsOpen(false)}
       />
+
+      {/* Mobile Floating Cute Selfie Camera FAB */}
+      {activeView === 'gallery' && (
+        <div className="fixed bottom-4 right-4 z-30 sm:hidden">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsCameraOpen(true)}
+            className="p-3.5 rounded-full bg-gradient-to-r from-purple-700 via-lavender-600 to-indigo-700 text-white shadow-cute-lg flex items-center justify-center border-2 border-white/90 active:scale-95 transition-transform"
+            title="Cute Selfie Camera 📸"
+          >
+            <Camera className="w-6 h-6" />
+          </motion.button>
+        </div>
+      )}
 
       {/* Floating Perspective / Demo Switcher Bar */}
       <DemoSwitcherBar onOpenHowItWorks={() => setIsHowItWorksOpen(true)} />

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Sparkles, Plus, Film, MessageCircle, Heart, Lock, Trash2 } from 'lucide-react';
+import { ArrowLeft, Send, Sparkles, Plus, Film, MessageCircle, Heart, Lock, Trash2, Camera } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { LavenderLogo } from './LavenderLogo';
 
@@ -9,6 +9,7 @@ interface FullPageChatProps {
   onOpenUpload: () => void;
   onOpenReel: () => void;
   onOpenProfile: () => void;
+  onOpenCamera: () => void;
 }
 
 const QUICK_PROMPTS = [
@@ -25,6 +26,7 @@ export const FullPageChat: React.FC<FullPageChatProps> = ({
   onOpenUpload,
   onOpenReel,
   onOpenProfile,
+  onOpenCamera,
 }) => {
   const { vault, chatMessages, currentUser, partnerUser, sendChatMessage, deleteChatMessage, triggerSparkleExplosion } = useVault();
   const [inputText, setInputText] = useState('');
@@ -219,13 +221,17 @@ export const FullPageChat: React.FC<FullPageChatProps> = ({
                         )}
 
                         <div
+                          onClick={() => {
+                            if (isSpecial) triggerSparkleExplosion();
+                          }}
                           className={`rounded-2xl px-4 py-2.5 text-xs sm:text-sm font-medium leading-relaxed shadow-xs transition-all ${
                             isSpecial
-                              ? 'bg-gradient-to-r from-purple-700 via-lavender-600 to-indigo-700 text-white font-bold shadow-cute'
+                              ? 'bg-gradient-to-r from-purple-700 via-lavender-600 to-indigo-700 text-white font-bold shadow-cute cursor-pointer active:scale-95'
                               : isMe
                               ? 'bg-gradient-to-r from-purple-700 to-lavender-600 text-white rounded-br-xs'
                               : 'bg-white text-purple-950 border border-lavender-200 rounded-bl-xs'
                           }`}
+                          title={isSpecial ? 'Tap to burst sparkles! ✨' : undefined}
                         >
                           {msg.text}
                         </div>
@@ -296,6 +302,18 @@ export const FullPageChat: React.FC<FullPageChatProps> = ({
               placeholder={`Message ${partnerUser ? partnerUser.name : 'friend'}...`}
               className="flex-1 px-4 py-2.5 rounded-2xl bg-lavender-50 border border-lavender-300 focus:outline-none focus:ring-2 focus:ring-purple-400 text-purple-950 text-base"
             />
+
+            {/* Cute Selfie Camera Button */}
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onOpenCamera}
+              className="p-2.5 rounded-2xl bg-lavender-100 hover:bg-lavender-200 text-purple-700 border border-lavender-200 transition-colors flex items-center justify-center flex-shrink-0"
+              title="Open Cute Selfie Camera 📸"
+            >
+              <Camera className="w-5 h-5 text-purple-700" />
+            </motion.button>
 
             {/* Sparkle Wave Quick Burst */}
             <motion.button

@@ -13,6 +13,7 @@ interface NavbarProps {
   onOpenHowItWorks: () => void;
   onOpenProfile: () => void;
   onOpenCloudSettings: () => void;
+  onOpenCamera: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -23,6 +24,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenHowItWorks,
   onOpenProfile,
   onOpenCloudSettings,
+  onOpenCamera,
 }) => {
   const { vault, currentUser, partnerUser, chatMessages, logoutUser } = useVault();
 
@@ -125,6 +127,18 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <Plus className="w-4 h-4 stroke-[3]" />
             <span className="hidden sm:inline">Upload</span>
+          </motion.button>
+
+          {/* Cute Selfie Camera */}
+          <motion.button
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.96 }}
+            onClick={onOpenCamera}
+            className="flex items-center gap-1 p-2 sm:px-3 sm:py-2 text-xs sm:text-sm font-bold rounded-xl bg-lavender-100 hover:bg-lavender-200 text-purple-900 border border-lavender-300 shadow-2xs transition-all"
+            title="Open Cute Selfie Camera with Filters 📸"
+          >
+            <Camera className="w-4 h-4 text-purple-700" />
+            <span className="hidden sm:inline">Selfie</span>
           </motion.button>
 
           {/* How It Works Tour */}
