@@ -1,0 +1,18 @@
+{
+  "name": "LilacVault • Private Memory Capsule",
+  "short_name": "LilacVault",
+  "description": "Private, aesthetic memory capsule strictly for two.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAF5FF",
+  "theme_color": "#7C3AED",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='25' fill='%237C3AED'/><text x='50' y='70' font-size='60' text-anchor='middle' fill='white'>🪻</text></svg>",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  
+  body {
+    background: radial-gradient(circle at top left, #FAF5FF 0%, #F5F0FD 40%, #EDE9FE 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+    font-family: 'Quicksand', 'Nunito', sans-serif;
+    color: #4C1D95;
+    overflow-x: hidden;
+  }
+}
+
+/* Cute Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #F3E8FF;
+}
+::-webkit-scrollbar-thumb {
+  background: #C4B5FD;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #A78BFA;
+}
+
+/* Glassmorphism Classes */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 10px 30px -5px rgba(139, 92, 246, 0.12);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(221, 214, 254, 0.6);
+  box-shadow: 0 8px 25px -4px rgba(167, 139, 250, 0.15);
+}
+
+.glass-pill {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(196, 181, 253, 0.5);
+}
+
+/* Polaroids */
+.polaroid-frame {
+  background: #ffffff;
+  padding: 10px 10px 32px 10px;
+  box-shadow: 0 10px 25px -5px rgba(109, 40, 217, 0.18), 0 0 1px rgba(0, 0, 0, 0.1);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.polaroid-frame:hover {
+  transform: translateY(-4px) rotate(0.5deg);
+  box-shadow: 0 16px 35px -5px rgba(109, 40, 217, 0.25);
+}
+
+/* Cute Pastel Sparkle Texture */
+.sparkle-bg {
+  background-image: radial-gradient(#D8B4FE 1px, transparent 1px);
+  background-size: 24px 24px;
+}
