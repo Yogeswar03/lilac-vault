@@ -36,8 +36,8 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 pt-6">
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-purple-950 via-lavender-950 to-indigo-950 text-white p-6 sm:p-8 shadow-cute-lg border border-purple-400/25">
+    <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 pt-3 sm:pt-6">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-purple-950 via-lavender-950 to-indigo-950 text-white p-4 sm:p-8 shadow-cute-lg border border-purple-400/25">
         {/* Soft lavender ambient glow circles */}
         <div className="absolute -top-12 -right-12 w-52 h-52 bg-lavender-500/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-12 -left-12 w-52 h-52 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />

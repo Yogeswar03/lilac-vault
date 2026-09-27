@@ -76,6 +76,39 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }
     loadData();
+
+    // Background sync across mobile & desktop
+    const interval = setInterval(async () => {
+      try {
+        const remoteVault = await getVault();
+        if (remoteVault) {
+          setVault((prev) => {
+            if (JSON.stringify(prev) !== JSON.stringify(remoteVault)) {
+              return remoteVault;
+            }
+            return prev;
+          });
+          const remoteMems = await getAllMemories();
+          setMemories((prev) => {
+            if (prev.length !== remoteMems.length || JSON.stringify(prev) !== JSON.stringify(remoteMems)) {
+              return remoteMems;
+            }
+            return prev;
+          });
+          const remoteMsgs = await getAllChatMessages();
+          setChatMessages((prev) => {
+            if (prev.length !== remoteMsgs.length) {
+              return remoteMsgs;
+            }
+            return prev;
+          });
+        }
+      } catch {
+        // quiet fallback
+      }
+    }, 2500);
+
+    return () => clearInterval(interval);
   }, []);
 
   const partnerUser = vault?.users.find((u) => u.id !== currentUser?.id) || null;

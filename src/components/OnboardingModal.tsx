@@ -64,37 +64,37 @@ export const OnboardingModal: React.FC<{ onOpenHowItWorks: () => void }> = ({ on
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-lavender-950/50 backdrop-blur-md overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-lavender-950/60 backdrop-blur-md overflow-y-auto py-6">
       <motion.div
         initial={{ opacity: 0, scale: 0.92, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="w-full max-w-lg glass-card rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden border border-lavender-200"
+        className="w-full max-w-lg glass-card rounded-3xl p-5 sm:p-8 shadow-2xl relative border border-lavender-200 max-h-[92vh] overflow-y-auto my-auto"
       >
         {/* Soft corner glows */}
         <div className="absolute -top-16 -right-16 w-36 h-36 bg-purple-300/30 rounded-full blur-2xl pointer-events-none" />
         <div className="absolute -bottom-16 -left-16 w-36 h-36 bg-indigo-300/30 rounded-full blur-2xl pointer-events-none" />
 
         {/* Minimalist Logo Header */}
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center mb-3">
-            <LavenderLogo size={60} />
+        <div className="text-center mb-5 sm:mb-6">
+          <div className="inline-flex items-center justify-center mb-2.5">
+            <LavenderLogo size={52} />
           </div>
-          <h2 className="text-2xl sm:text-3xl font-bold font-cute text-purple-950 tracking-tight flex items-center justify-center gap-1.5">
+          <h2 className="text-xl sm:text-3xl font-bold font-cute text-purple-950 tracking-tight flex items-center justify-center gap-1.5">
             <span>LilacVault</span>
-            <span className="text-xl">✨</span>
+            <span className="text-lg">✨</span>
           </h2>
-          <p className="text-sm text-purple-800/80 mt-1 max-w-xs mx-auto">
+          <p className="text-xs sm:text-sm text-purple-800/80 mt-1 max-w-xs mx-auto">
             A private, aesthetic memory capsule strictly reserved for <strong className="text-purple-900">two people</strong>.
           </p>
 
-          <div className="mt-3 flex items-center justify-center gap-2">
-            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-lavender-100 text-purple-800 border border-lavender-200">
+          <div className="mt-2.5 flex items-center justify-center gap-2">
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-lavender-100 text-purple-800 border border-lavender-200">
               <Lock className="w-3 h-3 text-purple-600" />
               Strict 2-User Lock 🔒
             </span>
             <button
               onClick={onOpenHowItWorks}
-              className="text-xs text-purple-700 font-semibold underline hover:text-purple-950 ml-1"
+              className="text-[11px] text-purple-700 font-semibold underline hover:text-purple-950 ml-1"
             >
               See how it works
             </button>
@@ -102,39 +102,39 @@ export const OnboardingModal: React.FC<{ onOpenHowItWorks: () => void }> = ({ on
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex p-1 bg-lavender-100/90 rounded-2xl mb-6 border border-lavender-200 text-xs sm:text-sm font-semibold">
+        <div className="flex p-1 bg-lavender-100/90 rounded-2xl mb-5 border border-lavender-200 text-[11px] sm:text-xs font-bold">
           <button
             onClick={() => { setTab('demo'); setErrorMessage(''); }}
-            className={`flex-1 py-2 px-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2 px-1 rounded-xl transition-all flex items-center justify-center gap-1 ${
               tab === 'demo'
                 ? 'bg-white text-purple-950 shadow-sm'
                 : 'text-purple-700 hover:text-purple-950'
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-            <span>⚡ Showcase Demo</span>
+            <Sparkles className="w-3 h-3 text-purple-600" />
+            <span>Showcase</span>
           </button>
           <button
             onClick={() => { setTab('create'); setErrorMessage(''); }}
-            className={`flex-1 py-2 px-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2 px-1 rounded-xl transition-all flex items-center justify-center gap-1 ${
               tab === 'create'
                 ? 'bg-white text-purple-950 shadow-sm'
                 : 'text-purple-700 hover:text-purple-950'
             }`}
           >
-            <Key className="w-3.5 h-3.5 text-purple-600" />
-            <span>Create Capsule</span>
+            <Key className="w-3 h-3 text-purple-600" />
+            <span>Create</span>
           </button>
           <button
             onClick={() => { setTab('join'); setErrorMessage(''); }}
-            className={`flex-1 py-2 px-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2 px-1 rounded-xl transition-all flex items-center justify-center gap-1 ${
               tab === 'join'
                 ? 'bg-white text-purple-950 shadow-sm'
                 : 'text-purple-700 hover:text-purple-950'
             }`}
           >
-            <Users className="w-3.5 h-3.5 text-purple-600" />
-            <span>Join with Code</span>
+            <Users className="w-3 h-3 text-purple-600" />
+            <span>Join Code</span>
           </button>
         </div>
 

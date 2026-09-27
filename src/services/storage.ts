@@ -78,8 +78,18 @@ export function readVideoFile(file: File): Promise<string> {
   });
 }
 
-// Save Vault
+// Save Vault (API + IndexedDB)
 export async function saveVault(vault: Vault): Promise<void> {
+  try {
+    await fetch('/api/vault', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ vault }),
+    });
+  } catch {
+    // offline fallback
+  }
+
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_VAULT, 'readwrite');
@@ -90,8 +100,24 @@ export async function saveVault(vault: Vault): Promise<void> {
   });
 }
 
-// Get Vault
+// Get Vault (API first, then IndexedDB)
 export async function getVault(): Promise<Vault | null> {
+  try {
+    const res = await fetch('/api/vault');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.vault) {
+        // Cache to IndexedDB
+        const db = await openDB();
+        const tx = db.transaction(STORE_VAULT, 'readwrite');
+        tx.objectStore(STORE_VAULT).put(data.vault);
+        return data.vault;
+      }
+    }
+  } catch {
+    // offline fallback
+  }
+
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_VAULT, 'readonly');
@@ -108,8 +134,18 @@ export async function getVault(): Promise<Vault | null> {
   });
 }
 
-// Save Memory
+// Save Memory (API + IndexedDB)
 export async function saveMemory(memory: Memory): Promise<void> {
+  try {
+    await fetch('/api/memories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memory }),
+    });
+  } catch {
+    // offline fallback
+  }
+
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_MEMORIES, 'readwrite');
@@ -120,8 +156,26 @@ export async function saveMemory(memory: Memory): Promise<void> {
   });
 }
 
-// Get All Memories
+// Get All Memories (API first, then IndexedDB)
 export async function getAllMemories(): Promise<Memory[]> {
+  try {
+    const res = await fetch('/api/memories');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.memories) {
+        const items = data.memories as Memory[];
+        items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        // Cache to IndexedDB
+        const db = await openDB();
+        const tx = db.transaction(STORE_MEMORIES, 'readwrite');
+        items.forEach((m) => tx.objectStore(STORE_MEMORIES).put(m));
+        return items;
+      }
+    }
+  } catch {
+    // offline fallback
+  }
+
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_MEMORIES, 'readonly');
@@ -138,6 +192,12 @@ export async function getAllMemories(): Promise<Memory[]> {
 
 // Delete Memory
 export async function deleteMemory(id: string): Promise<void> {
+  try {
+    await fetch(`/api/memories/${id}`, { method: 'DELETE' });
+  } catch {
+    // offline fallback
+  }
+
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_MEMORIES, 'readwrite');
@@ -148,8 +208,18 @@ export async function deleteMemory(id: string): Promise<void> {
   });
 }
 
-// Chat Messages Methods
+// Chat Messages Methods (API + IndexedDB)
 export async function saveChatMessage(message: ChatMessage): Promise<void> {
+  try {
+    await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),
+    });
+  } catch {
+    // offline fallback
+  }
+
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_MESSAGES, 'readwrite');
@@ -161,6 +231,20 @@ export async function saveChatMessage(message: ChatMessage): Promise<void> {
 }
 
 export async function getAllChatMessages(): Promise<ChatMessage[]> {
+  try {
+    const res = await fetch('/api/chat');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.messages) {
+        const items = data.messages as ChatMessage[];
+        items.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        return items;
+      }
+    }
+  } catch {
+    // offline fallback
+  }
+
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_MESSAGES, 'readonly');
@@ -186,6 +270,12 @@ export function getActiveUserId(): string | null {
 
 // Clear all data (for reset)
 export async function clearAllVaultData(): Promise<void> {
+  try {
+    await fetch('/api/reset', { method: 'POST' });
+  } catch {
+    // offline fallback
+  }
+
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction([STORE_VAULT, STORE_MEMORIES, STORE_SETTINGS, STORE_MESSAGES], 'readwrite');

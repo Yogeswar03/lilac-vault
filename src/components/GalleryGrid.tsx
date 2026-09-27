@@ -32,7 +32,7 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
   const allTags = Array.from(new Set(memories.flatMap((m) => m.tags)));
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
       {/* Filter Tabs Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full no-scrollbar">
