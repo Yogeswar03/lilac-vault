@@ -133,9 +133,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }
               }}
               title="Lock Capsule / Switch Profile"
-              className="ml-1 p-1 text-purple-400 hover:text-purple-700 transition-colors"
+              className="ml-1 p-1 text-purple-700 hover:text-purple-950 hover:bg-lavender-100 rounded-lg transition-colors"
             >
-              <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <LogOut className="w-4 h-4" />
             </button>
           </div>
         </div>

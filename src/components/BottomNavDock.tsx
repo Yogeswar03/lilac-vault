@@ -22,27 +22,27 @@ export const BottomNavDock: React.FC<BottomNavDockProps> = ({
   return (
     <nav
       aria-label="Main Navigation Dock"
-      className="fixed bottom-3 sm:bottom-5 left-1/2 -translate-x-1/2 z-40 w-full max-w-[94vw] sm:max-w-lg px-2 select-none pointer-events-auto"
+      className="fixed bottom-3 sm:bottom-5 left-1/2 -translate-x-1/2 z-40 w-full max-w-[95vw] sm:max-w-lg px-2 select-none pointer-events-auto"
     >
-      <div className="relative glass-card bg-purple-950/90 sm:bg-purple-950/85 backdrop-blur-2xl border border-purple-400/40 rounded-3xl p-1.5 sm:p-2 shadow-2xl shadow-purple-950/60 flex items-center justify-around gap-1 sm:gap-2">
-        {/* Ambient lavender inner glow */}
-        <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-purple-500/10 via-lavender-400/15 to-indigo-500/10 pointer-events-none" />
-
+      <div
+        style={{ backgroundColor: '#180B2B' }}
+        className="relative rounded-3xl p-2 shadow-2xl border-2 border-purple-400/60 shadow-purple-950/80 flex items-center justify-around gap-1 sm:gap-2"
+      >
         {/* 1. Memories / Gallery View */}
         <motion.button
           whileHover={{ scale: 1.06 }}
           whileTap={{ scale: 0.92 }}
           type="button"
           onClick={() => onChangeView('gallery')}
-          className={`flex-1 flex flex-col items-center justify-center py-1.5 sm:py-2 px-1 rounded-2xl transition-all min-w-[52px] sm:min-w-[64px] ${
+          className={`flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-2xl transition-all min-w-[54px] sm:min-w-[64px] ${
             activeView === 'gallery'
-              ? 'bg-purple-700/80 text-white shadow-cute border border-purple-400/40'
-              : 'text-purple-200/80 hover:text-white hover:bg-white/10'
+              ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-cute border border-purple-300'
+              : 'text-purple-100 hover:text-white bg-white/5 hover:bg-white/15'
           }`}
           title="Memories Gallery"
         >
-          <Images className="w-6 h-6 sm:w-7 sm:h-7 mb-0.5 text-lavender-200" />
-          <span className="text-[10px] sm:text-xs font-bold tracking-tight">Memories</span>
+          <Images className={`w-6 h-6 sm:w-7 sm:h-7 mb-0.5 ${activeView === 'gallery' ? 'text-white' : 'text-purple-200'}`} />
+          <span className="text-[10px] sm:text-xs font-extrabold tracking-tight text-white">Memories</span>
         </motion.button>
 
         {/* 2. Add / Upload Photo */}
@@ -51,26 +51,24 @@ export const BottomNavDock: React.FC<BottomNavDockProps> = ({
           whileTap={{ scale: 0.92 }}
           type="button"
           onClick={onOpenUpload}
-          className="flex-1 flex flex-col items-center justify-center py-1.5 sm:py-2 px-1 rounded-2xl transition-all min-w-[52px] sm:min-w-[64px] text-purple-200/80 hover:text-white hover:bg-white/10"
+          className="flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-2xl transition-all min-w-[54px] sm:min-w-[64px] text-purple-100 hover:text-white bg-white/5 hover:bg-white/15"
           title="Upload Memory (Photo / Video)"
         >
-          <div className="relative">
-            <PlusCircle className="w-6 h-6 sm:w-7 sm:h-7 mb-0.5 text-lavender-200" />
-          </div>
-          <span className="text-[10px] sm:text-xs font-bold tracking-tight">Add Photo</span>
+          <PlusCircle className="w-6 h-6 sm:w-7 sm:h-7 mb-0.5 text-purple-200" />
+          <span className="text-[10px] sm:text-xs font-extrabold tracking-tight text-white">Add Photo</span>
         </motion.button>
 
         {/* 3. CENTER: Big Cute Selfie Camera with Filters 📸 */}
-        <div className="relative -mt-6 sm:-mt-8 flex flex-col items-center px-1">
+        <div className="relative -mt-7 sm:-mt-9 flex flex-col items-center px-1">
           <motion.button
             whileHover={{ scale: 1.10 }}
             whileTap={{ scale: 0.90 }}
             type="button"
             onClick={onOpenCamera}
-            className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-purple-600 via-lavender-500 to-indigo-600 text-white shadow-cute-lg flex items-center justify-center border-4 border-white/95 ring-4 ring-purple-400/60 active:ring-purple-400 transition-all cursor-pointer group"
+            className="relative w-15 h-15 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-purple-600 via-lavender-500 to-indigo-600 text-white shadow-cute-lg flex items-center justify-center border-4 border-white ring-4 ring-purple-400/80 active:ring-purple-400 transition-all cursor-pointer group"
             title="Snap Cute Selfie with AR Face Filters 📸"
           >
-            <Camera className="w-7 h-7 sm:w-8 sm:h-8 text-white transition-transform group-hover:scale-110" />
+            <Camera className="w-7 h-7 sm:w-8 sm:h-8 text-white transition-transform group-hover:scale-110 drop-shadow-sm" />
 
             {/* Sparkle ping dot */}
             <span className="absolute -top-1 -right-1 flex h-4 w-4 sm:h-5 sm:w-5">
@@ -81,7 +79,7 @@ export const BottomNavDock: React.FC<BottomNavDockProps> = ({
             </span>
           </motion.button>
 
-          <span className="mt-0.5 text-[9px] sm:text-[10px] font-extrabold text-yellow-300 uppercase tracking-wider drop-shadow-xs">
+          <span className="mt-1 text-[10px] sm:text-xs font-black text-yellow-300 uppercase tracking-wider drop-shadow-md">
             Camera
           </span>
         </div>
@@ -92,22 +90,22 @@ export const BottomNavDock: React.FC<BottomNavDockProps> = ({
           whileTap={{ scale: 0.92 }}
           type="button"
           onClick={() => onChangeView('chat')}
-          className={`flex-1 flex flex-col items-center justify-center py-1.5 sm:py-2 px-1 rounded-2xl transition-all min-w-[52px] sm:min-w-[64px] relative ${
+          className={`flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-2xl transition-all min-w-[54px] sm:min-w-[64px] relative ${
             activeView === 'chat'
-              ? 'bg-purple-700/80 text-white shadow-cute border border-purple-400/40'
-              : 'text-purple-200/80 hover:text-white hover:bg-white/10'
+              ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-cute border border-purple-300'
+              : 'text-purple-100 hover:text-white bg-white/5 hover:bg-white/15'
           }`}
           title="Capsule Chat"
         >
           <div className="relative">
-            <MessageCircle className="w-6 h-6 sm:w-7 sm:h-7 mb-0.5 text-lavender-200" />
+            <MessageCircle className={`w-6 h-6 sm:w-7 sm:h-7 mb-0.5 ${activeView === 'chat' ? 'text-white' : 'text-purple-200'}`} />
             {chatMessageCount > 0 && (
-              <span className="absolute -top-1 -right-2 px-1.5 py-0.2 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 text-white text-[9px] font-bold border border-white/50 shadow-xs animate-pulse">
+              <span className="absolute -top-1.5 -right-2.5 px-1.5 py-0.2 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 text-white text-[10px] font-black border border-white/60 shadow-xs animate-pulse">
                 {chatMessageCount > 99 ? '99+' : chatMessageCount}
               </span>
             )}
           </div>
-          <span className="text-[10px] sm:text-xs font-bold tracking-tight">Chat</span>
+          <span className="text-[10px] sm:text-xs font-extrabold tracking-tight text-white">Chat</span>
         </motion.button>
 
         {/* 5. AI Video Reel */}
@@ -116,14 +114,14 @@ export const BottomNavDock: React.FC<BottomNavDockProps> = ({
           whileTap={{ scale: 0.92 }}
           type="button"
           onClick={onOpenReel}
-          className="flex-1 flex flex-col items-center justify-center py-1.5 sm:py-2 px-1 rounded-2xl transition-all min-w-[52px] sm:min-w-[64px] text-purple-200/80 hover:text-white hover:bg-white/10 relative group"
+          className="flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-2xl transition-all min-w-[54px] sm:min-w-[64px] text-purple-100 hover:text-white bg-white/5 hover:bg-white/15 relative group"
           title="AI Cinematic Video Reel"
         >
           <div className="relative">
-            <Film className="w-6 h-6 sm:w-7 sm:h-7 mb-0.5 text-lavender-200" />
+            <Film className="w-6 h-6 sm:w-7 sm:h-7 mb-0.5 text-purple-200" />
             <Sparkles className="absolute -top-1 -right-2 w-3.5 h-3.5 text-yellow-300 animate-spin" style={{ animationDuration: '6s' }} />
           </div>
-          <span className="text-[10px] sm:text-xs font-bold tracking-tight">Reel</span>
+          <span className="text-[10px] sm:text-xs font-extrabold tracking-tight text-white">Reel</span>
         </motion.button>
       </div>
     </nav>
