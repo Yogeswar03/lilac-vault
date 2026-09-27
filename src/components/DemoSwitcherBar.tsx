@@ -13,7 +13,7 @@ export const DemoSwitcherBar: React.FC<{ onOpenHowItWorks: () => void }> = ({ on
     <motion.div
       initial={{ y: 50, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 max-w-lg w-[94%] sm:w-auto px-4 py-2.5 rounded-full glass-card border border-purple-300 shadow-cute-lg flex items-center justify-between gap-3 text-xs"
+      className="fixed bottom-20 sm:bottom-24 left-1/2 -translate-x-1/2 z-40 max-w-lg w-[94%] sm:w-auto px-4 py-2 rounded-full glass-card border border-purple-300 shadow-cute-lg flex items-center justify-between gap-3 text-xs"
     >
       <div className="flex items-center gap-2">
         <span className="p-1 rounded-full bg-purple-100 text-purple-700">

@@ -14,12 +14,12 @@ import { OnboardingModal } from './components/OnboardingModal';
 import { CloudSettingsModal } from './components/CloudSettingsModal';
 import { CuteCameraModal } from './components/CuteCameraModal';
 import { DemoSwitcherBar } from './components/DemoSwitcherBar';
+import { BottomNavDock } from './components/BottomNavDock';
 import { LavenderLogo } from './components/LavenderLogo';
-import { Camera } from 'lucide-react';
 import { Memory } from './types';
 
 const MainAppContent: React.FC = () => {
-  const { vault, currentUser, isLoading, startDemoMode } = useVault();
+  const { vault, currentUser, isLoading, startDemoMode, chatMessages } = useVault();
 
   // Active Main View: 'gallery' or 'chat' (full page)
   const [activeView, setActiveView] = useState<'gallery' | 'chat'>('gallery');
@@ -146,28 +146,16 @@ const MainAppContent: React.FC = () => {
         onClose={() => setIsCloudSettingsOpen(false)}
       />
 
-      {/* Big Prominent Bottom Floating Camera Button */}
+      {/* Bottom Navigation Dock: Big Center Camera with Larger, Finger-Friendly Navigation Buttons */}
       {activeView === 'gallery' && (
-        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center select-none pointer-events-auto">
-          <motion.button
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.92 }}
-            onClick={() => setIsCameraOpen(true)}
-            className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-purple-700 via-lavender-600 to-indigo-700 text-white shadow-cute-lg flex items-center justify-center border-4 border-white/95 ring-4 ring-purple-300/60 active:ring-purple-400 transition-all cursor-pointer group"
-            title="Open Cute Selfie Camera 📸"
-          >
-            <Camera className="w-8 h-8 sm:w-10 sm:h-10 text-white transition-transform group-hover:scale-110" />
-            <span className="absolute -top-1 -right-1 flex h-4 w-4 sm:h-5 sm:w-5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-4 w-4 sm:h-5 sm:w-5 bg-yellow-300 items-center justify-center text-[10px] text-purple-950 font-bold">
-                ✨
-              </span>
-            </span>
-          </motion.button>
-          <span className="mt-1 px-3 py-0.5 rounded-full bg-purple-950/85 backdrop-blur-md text-[11px] font-bold text-white shadow-cute border border-purple-400/30 tracking-wide">
-            Selfie Camera 📸
-          </span>
-        </div>
+        <BottomNavDock
+          activeView={activeView}
+          onChangeView={setActiveView}
+          onOpenUpload={() => setIsUploadOpen(true)}
+          onOpenReel={() => setIsReelOpen(true)}
+          onOpenCamera={() => setIsCameraOpen(true)}
+          chatMessageCount={chatMessages.length}
+        />
       )}
 
       {/* Floating Perspective / Demo Switcher Bar */}

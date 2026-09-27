@@ -214,8 +214,8 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
               )}
             </div>
 
-            {/* Quick Actions */}
-            <div className="flex items-center gap-2">
+            {/* Quick Actions (Desktop / Tablet shortcuts - handled by BottomNavDock on mobile) */}
+            <div className="hidden sm:flex items-center gap-2">
               <button
                 onClick={onOpenUpload}
                 className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 via-lavender-600 to-indigo-600 text-white font-bold text-xs shadow-cute hover:brightness-105 flex items-center justify-center gap-1.5 transition-all"
