@@ -6,7 +6,7 @@ import { GalleryGrid } from './components/GalleryGrid';
 import { MemoryLightbox } from './components/MemoryLightbox';
 import { UploadModal } from './components/UploadModal';
 import { AIReelModal } from './components/AIReelModal';
-import { CapsuleChatModal } from './components/CapsuleChatModal';
+import { FullPageChat } from './components/FullPageChat';
 import { EditProfileModal } from './components/EditProfileModal';
 import { HowItWorksModal } from './components/HowItWorksModal';
 import { OnboardingModal } from './components/OnboardingModal';
@@ -17,10 +17,12 @@ import { Memory } from './types';
 const MainAppContent: React.FC = () => {
   const { vault, currentUser, isLoading, startDemoMode } = useVault();
 
+  // Active Main View: 'gallery' or 'chat' (full page)
+  const [activeView, setActiveView] = useState<'gallery' | 'chat'>('gallery');
+
   // Modals state
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isReelOpen, setIsReelOpen] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
@@ -53,33 +55,44 @@ const MainAppContent: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen sparkle-bg flex flex-col pb-20">
-      {/* Top Navbar */}
-      <Navbar
-        onOpenUpload={() => setIsUploadOpen(true)}
-        onOpenReel={() => setIsReelOpen(true)}
-        onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
-        onOpenChat={() => setIsChatOpen(true)}
-        onOpenProfile={() => setIsProfileOpen(true)}
-      />
-
-      {/* Hero Banner with Days Counter & Vault Key */}
-      <HeroBanner
-        onOpenUpload={() => setIsUploadOpen(true)}
-        onOpenReel={() => setIsReelOpen(true)}
-        onOpenChat={() => setIsChatOpen(true)}
-        onOpenProfile={() => setIsProfileOpen(true)}
-      />
-
-      {/* Main Memory Gallery */}
-      <main className="flex-1">
-        <GalleryGrid
-          onSelectMemory={(mem) => setSelectedMemory(mem)}
+    <div className="min-h-screen sparkle-bg flex flex-col">
+      {/* View 1: Full-Page Chat */}
+      {activeView === 'chat' ? (
+        <FullPageChat
+          onBack={() => setActiveView('gallery')}
           onOpenUpload={() => setIsUploadOpen(true)}
+          onOpenReel={() => setIsReelOpen(true)}
+          onOpenProfile={() => setIsProfileOpen(true)}
         />
-      </main>
+      ) : (
+        /* View 2: Memories Gallery & Hero */
+        <div className="flex-1 flex flex-col pb-20">
+          <Navbar
+            activeView={activeView}
+            onChangeView={setActiveView}
+            onOpenUpload={() => setIsUploadOpen(true)}
+            onOpenReel={() => setIsReelOpen(true)}
+            onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
+            onOpenProfile={() => setIsProfileOpen(true)}
+          />
 
-      {/* Modals & Overlays */}
+          <HeroBanner
+            onOpenUpload={() => setIsUploadOpen(true)}
+            onOpenReel={() => setIsReelOpen(true)}
+            onOpenChat={() => setActiveView('chat')}
+            onOpenProfile={() => setIsProfileOpen(true)}
+          />
+
+          <main className="flex-1">
+            <GalleryGrid
+              onSelectMemory={(mem) => setSelectedMemory(mem)}
+              onOpenUpload={() => setIsUploadOpen(true)}
+            />
+          </main>
+        </div>
+      )}
+
+      {/* Global Modals (Accessible from both Gallery and Full-Page Chat) */}
       <UploadModal
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
@@ -88,11 +101,6 @@ const MainAppContent: React.FC = () => {
       <AIReelModal
         isOpen={isReelOpen}
         onClose={() => setIsReelOpen(false)}
-      />
-
-      <CapsuleChatModal
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
       />
 
       <EditProfileModal
@@ -111,7 +119,7 @@ const MainAppContent: React.FC = () => {
         onStartDemo={startDemoMode}
       />
 
-      {/* Bottom Floating Demo / Perspective Switcher */}
+      {/* Floating Perspective / Demo Switcher Bar */}
       <DemoSwitcherBar onOpenHowItWorks={() => setIsHowItWorksOpen(true)} />
     </div>
   );

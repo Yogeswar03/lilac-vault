@@ -1,22 +1,24 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Film, Plus, HelpCircle, Lock, MessageCircle, LogOut } from 'lucide-react';
+import { Sparkles, Film, Plus, HelpCircle, Lock, MessageCircle, LogOut, Camera } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { LavenderLogo } from './LavenderLogo';
 
 interface NavbarProps {
+  activeView: 'gallery' | 'chat';
+  onChangeView: (view: 'gallery' | 'chat') => void;
   onOpenUpload: () => void;
   onOpenReel: () => void;
   onOpenHowItWorks: () => void;
-  onOpenChat: () => void;
   onOpenProfile: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
+  activeView,
+  onChangeView,
   onOpenUpload,
   onOpenReel,
   onOpenHowItWorks,
-  onOpenChat,
   onOpenProfile,
 }) => {
   const { vault, currentUser, partnerUser, chatMessages, logoutUser } = useVault();
@@ -35,49 +37,69 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-1.5 sm:gap-2">
         {/* Aesthetic Minimalist Brand / Logo */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }} className="flex-shrink-0">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => onChangeView('gallery')}
+            className="flex items-center gap-2 sm:gap-3 text-left focus:outline-none flex-shrink-0"
+            title="Go to Memories Gallery"
+          >
             <LavenderLogo size={36} className="sm:w-[42px] sm:h-[42px]" />
-          </motion.div>
-
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <h1 className="text-base sm:text-2xl font-bold bg-gradient-to-r from-purple-950 via-lavender-700 to-indigo-800 bg-clip-text text-transparent font-cute truncate max-w-[140px] sm:max-w-none">
-                {vault?.name || 'LilacVault'}
-              </h1>
-              <span className="hidden md:inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-lavender-100 text-purple-800 font-bold border border-lavender-200 flex-shrink-0">
-                <Lock className="w-3 h-3 text-purple-600" />
-                {vault?.isLocked ? 'Strictly 2 Paired' : '1/2 Waiting'}
-              </span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <h1 className="text-base sm:text-2xl font-bold bg-gradient-to-r from-purple-950 via-lavender-700 to-indigo-800 bg-clip-text text-transparent font-cute truncate max-w-[130px] sm:max-w-none">
+                  {vault?.name || 'LilacVault'}
+                </h1>
+                <span className="hidden md:inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-lavender-100 text-purple-800 font-bold border border-lavender-200 flex-shrink-0">
+                  <Lock className="w-3 h-3 text-purple-600" />
+                  {vault?.isLocked ? 'Strictly 2 Paired' : '1/2 Waiting'}
+                </span>
+              </div>
+              <p className="text-[11px] sm:text-xs text-purple-700/80 font-medium truncate">
+                <span>Day {daysTogether}</span>
+                <span className="mx-1">•</span>
+                <span className="text-purple-900 font-semibold">{currentUser?.name?.split(' ')[0]}</span>
+                <span className="mx-0.5">&</span>
+                <span className="text-purple-900 font-semibold">{partnerUser ? partnerUser.name?.split(' ')[0] : 'Waiting...'}</span>
+              </p>
             </div>
-            <p className="text-[11px] sm:text-xs text-purple-700/80 font-medium truncate">
-              <span>Day {daysTogether}</span>
-              <span className="mx-1">•</span>
-              <span className="text-purple-900 font-semibold">{currentUser?.name?.split(' ')[0]}</span>
-              <span className="mx-0.5">&</span>
-              <span className="text-purple-900 font-semibold">{partnerUser ? partnerUser.name?.split(' ')[0] : 'Waiting...'}</span>
-            </p>
-          </div>
+          </motion.button>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-          {/* Chat Button */}
-          <motion.button
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.96 }}
-            onClick={onOpenChat}
-            className="relative flex items-center justify-center p-2 sm:px-3 sm:py-2 text-xs sm:text-sm font-bold rounded-xl bg-white hover:bg-lavender-50 text-purple-900 border border-lavender-200 transition-colors shadow-xs"
-            title="Open Chat"
+        {/* View Switcher Pills */}
+        <div className="flex items-center p-1 bg-lavender-100/90 rounded-2xl border border-lavender-200 text-xs font-bold shadow-2xs">
+          <button
+            onClick={() => onChangeView('gallery')}
+            className={`px-2.5 sm:px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${
+              activeView === 'gallery'
+                ? 'bg-white text-purple-950 shadow-xs'
+                : 'text-purple-700 hover:text-purple-950'
+            }`}
           >
-            <MessageCircle className="w-4 h-4 text-purple-600" />
-            <span className="hidden sm:inline ml-1.5">Chat</span>
+            <Camera className="w-3.5 h-3.5 text-purple-600" />
+            <span className="hidden sm:inline">Memories</span>
+          </button>
+
+          <button
+            onClick={() => onChangeView('chat')}
+            className={`px-2.5 sm:px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 relative ${
+              activeView === 'chat'
+                ? 'bg-white text-purple-950 shadow-xs'
+                : 'text-purple-700 hover:text-purple-950'
+            }`}
+          >
+            <MessageCircle className="w-3.5 h-3.5 text-purple-600" />
+            <span>Chat</span>
             {chatMessages.length > 0 && (
-              <span className="absolute -top-1 -right-1 sm:static sm:ml-1 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-purple-600 text-white text-[9px] sm:text-[10px] font-bold flex items-center justify-center shadow-xs">
+              <span className="w-4 h-4 rounded-full bg-purple-600 text-white text-[9px] font-bold flex items-center justify-center">
                 {chatMessages.length}
               </span>
             )}
-          </motion.button>
+          </button>
+        </div>
 
+        {/* Right Action Buttons */}
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
           {/* AI Video Reel Maker */}
           <motion.button
             whileHover={{ scale: 1.04 }}
