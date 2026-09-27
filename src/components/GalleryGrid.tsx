@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, MessageCircle, Film, Heart, LayoutGrid, Columns } from 'lucide-react';
+import { Sparkles, MessageCircle, Film, Heart, LayoutGrid, Columns, Trash2 } from 'lucide-react';
 import { Memory } from '../types';
 import { useVault } from '../context/VaultContext';
 
@@ -13,7 +13,7 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
   onSelectMemory,
   onOpenUpload,
 }) => {
-  const { memories, currentUser, partnerUser, toggleHeart } = useVault();
+  const { memories, currentUser, partnerUser, toggleHeart, deleteMemory } = useVault();
   const [filter, setFilter] = useState<'all' | 'photo' | 'video' | 'mine' | 'theirs' | 'starred'>('all');
   const [activeTag, setActiveTag] = useState<string | null>(null);
 
@@ -222,12 +222,26 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
                       <span className="truncate max-w-[60px] sm:max-w-none">{memory.uploaderName.split(' ')[0]}</span>
                     </div>
 
-                    {/* AI Mood Sticker */}
-                    {memory.aiMood && (
-                      <div className="hidden sm:flex absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-purple-900/60 backdrop-blur-md text-[9px] font-bold text-yellow-300 items-center gap-0.5 border border-purple-300/30">
-                        <Sparkles className="w-2.5 h-2.5" />
-                      </div>
-                    )}
+                    {/* Top Right Actions: Mood sticker + Delete */}
+                    <div className="absolute top-2 right-2 flex items-center gap-1 z-10">
+                      {memory.aiMood && (
+                        <div className="hidden sm:flex px-1.5 py-0.5 rounded-full bg-purple-900/60 backdrop-blur-md text-[9px] font-bold text-yellow-300 items-center gap-0.5 border border-purple-300/30">
+                          <Sparkles className="w-2.5 h-2.5" />
+                        </div>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`Delete this memory ("${memory.caption || 'memory'}") from your capsule?`)) {
+                            deleteMemory(memory.id);
+                          }
+                        }}
+                        className="p-1 rounded-full bg-black/45 hover:bg-rose-600 text-white/80 hover:text-white backdrop-blur-md transition-all shadow-xs"
+                        title="Delete this memory"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
 
                     {/* Bottom Scrim with Caption and Heart */}
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent p-2.5 pt-6 text-white flex items-end justify-between gap-1.5">
@@ -311,6 +325,20 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
                         </div>
                       )}
 
+                      {/* Delete Button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`Delete this memory ("${memory.caption || 'memory'}") from your capsule?`)) {
+                            deleteMemory(memory.id);
+                          }
+                        }}
+                        className="absolute top-2.5 right-2.5 p-1.5 rounded-full bg-black/45 hover:bg-rose-600 text-white/80 hover:text-white backdrop-blur-md transition-all shadow-sm z-10"
+                        title="Delete this memory"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+
                       {/* Favorite Button */}
                       <button
                         onClick={(e) => {
@@ -358,6 +386,18 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
                               <span>{memory.notes.length}</span>
                             </span>
                           )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (window.confirm(`Delete this memory ("${memory.caption || 'memory'}")?`)) {
+                                deleteMemory(memory.id);
+                              }
+                            }}
+                            className="p-1 text-purple-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-colors ml-0.5"
+                            title="Delete memory"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
                     </div>

@@ -3,11 +3,13 @@ import {
   isSupabaseConfigured,
   supabaseSaveVault,
   supabaseGetVault,
+  supabaseGetVaultByCode,
   supabaseSaveMemory,
   supabaseGetAllMemories,
   supabaseDeleteMemory,
   supabaseSaveChatMessage,
   supabaseGetAllChatMessages,
+  supabaseDeleteChatMessage,
   supabaseResetAll,
 } from './supabase';
 
@@ -91,7 +93,7 @@ export function readVideoFile(file: File): Promise<string> {
 
 // Save Vault (Supabase Cloud + Local API + IndexedDB)
 export async function saveVault(vault: Vault): Promise<void> {
-  if (isSupabaseConfigured) {
+  if (isSupabaseConfigured()) {
     try {
       await supabaseSaveVault(vault);
     } catch (e) {
@@ -121,7 +123,7 @@ export async function saveVault(vault: Vault): Promise<void> {
 
 // Get Vault (Supabase Cloud first, then Local API, then IndexedDB)
 export async function getVault(): Promise<Vault | null> {
-  if (isSupabaseConfigured) {
+  if (isSupabaseConfigured()) {
     try {
       const cloudVault = await supabaseGetVault();
       if (cloudVault) {
@@ -166,9 +168,125 @@ export async function getVault(): Promise<Vault | null> {
   });
 }
 
+// Get Vault explicitly by Access Code (Supabase Cloud first, then Local API, then IndexedDB)
+export async function getVaultByCode(accessCode: string): Promise<Vault | null> {
+  const cleanCode = accessCode.trim().toUpperCase();
+
+  if (isSupabaseConfigured()) {
+    try {
+      const cloudVault = await supabaseGetVaultByCode(cleanCode);
+      if (cloudVault) {
+        const db = await openDB();
+        const tx = db.transaction(STORE_VAULT, 'readwrite');
+        tx.objectStore(STORE_VAULT).put(cloudVault);
+        return cloudVault;
+      }
+    } catch (e) {
+      console.error('Supabase fetch vault by code error:', e);
+    }
+  } else {
+    try {
+      const res = await fetch(`/api/vault?code=${cleanCode}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.vault && data.vault.accessCode?.trim().toUpperCase() === cleanCode) {
+          const db = await openDB();
+          const tx = db.transaction(STORE_VAULT, 'readwrite');
+          tx.objectStore(STORE_VAULT).put(data.vault);
+          return data.vault;
+        }
+      }
+    } catch {
+      // offline fallback
+    }
+  }
+
+  // Local IndexedDB fallback
+  const db = await openDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction(STORE_VAULT, 'readonly');
+    const store = tx.objectStore(STORE_VAULT);
+    const req = store.getAll();
+    req.onsuccess = () => {
+      const all = (req.result as Vault[]) || [];
+      const match = all.find((v) => v.accessCode?.trim().toUpperCase() === cleanCode);
+      resolve(match || null);
+    };
+    req.onerror = () => resolve(null);
+  });
+}
+
+// Sync Local IndexedDB data to Supabase Cloud
+export async function syncLocalToCloud(): Promise<{
+  success: boolean;
+  error?: string;
+  count?: { vault: boolean; memories: number; chat: number };
+}> {
+  if (!isSupabaseConfigured()) {
+    return { success: false, error: 'Supabase credentials are not configured.' };
+  }
+
+  try {
+    const db = await openDB();
+
+    // 1. Sync Vault
+    const localVaults = await new Promise<Vault[]>((resolve) => {
+      const tx = db.transaction(STORE_VAULT, 'readonly');
+      const store = tx.objectStore(STORE_VAULT);
+      const req = store.getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => resolve([]);
+    });
+
+    let vaultSynced = false;
+    if (localVaults.length > 0) {
+      await supabaseSaveVault(localVaults[0]);
+      vaultSynced = true;
+    }
+
+    // 2. Sync Memories
+    const localMems = await new Promise<Memory[]>((resolve) => {
+      const tx = db.transaction(STORE_MEMORIES, 'readonly');
+      const store = tx.objectStore(STORE_MEMORIES);
+      const req = store.getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => resolve([]);
+    });
+
+    for (const mem of localMems) {
+      await supabaseSaveMemory(mem);
+    }
+
+    // 3. Sync Chat Messages
+    const localMsgs = await new Promise<ChatMessage[]>((resolve) => {
+      const tx = db.transaction(STORE_MESSAGES, 'readonly');
+      const store = tx.objectStore(STORE_MESSAGES);
+      const req = store.getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => resolve([]);
+    });
+
+    for (const msg of localMsgs) {
+      await supabaseSaveChatMessage(msg);
+    }
+
+    return {
+      success: true,
+      count: {
+        vault: vaultSynced,
+        memories: localMems.length,
+        chat: localMsgs.length,
+      },
+    };
+  } catch (err: any) {
+    console.error('Error syncing local data to cloud:', err);
+    return { success: false, error: err?.message || 'Failed to sync to Supabase.' };
+  }
+}
+
 // Save Memory (Supabase Cloud + Local API + IndexedDB)
 export async function saveMemory(memory: Memory): Promise<void> {
-  if (isSupabaseConfigured) {
+  if (isSupabaseConfigured()) {
     try {
       await supabaseSaveMemory(memory);
     } catch (e) {
@@ -198,7 +316,7 @@ export async function saveMemory(memory: Memory): Promise<void> {
 
 // Get All Memories (Supabase Cloud first, then Local API, then IndexedDB)
 export async function getAllMemories(): Promise<Memory[]> {
-  if (isSupabaseConfigured) {
+  if (isSupabaseConfigured()) {
     try {
       const cloudMems = await supabaseGetAllMemories();
       if (cloudMems && cloudMems.length > 0) {
@@ -245,7 +363,7 @@ export async function getAllMemories(): Promise<Memory[]> {
 
 // Delete Memory
 export async function deleteMemory(id: string): Promise<void> {
-  if (isSupabaseConfigured) {
+  if (isSupabaseConfigured()) {
     try {
       await supabaseDeleteMemory(id);
     } catch (e) {
@@ -271,7 +389,7 @@ export async function deleteMemory(id: string): Promise<void> {
 
 // Chat Messages Methods (Supabase Cloud + Local API + IndexedDB)
 export async function saveChatMessage(message: ChatMessage): Promise<void> {
-  if (isSupabaseConfigured) {
+  if (isSupabaseConfigured()) {
     try {
       await supabaseSaveChatMessage(message);
     } catch (e) {
@@ -300,7 +418,7 @@ export async function saveChatMessage(message: ChatMessage): Promise<void> {
 }
 
 export async function getAllChatMessages(): Promise<ChatMessage[]> {
-  if (isSupabaseConfigured) {
+  if (isSupabaseConfigured()) {
     try {
       const cloudMsgs = await supabaseGetAllChatMessages();
       if (cloudMsgs && cloudMsgs.length > 0) {
@@ -339,6 +457,32 @@ export async function getAllChatMessages(): Promise<ChatMessage[]> {
   });
 }
 
+// Delete Chat Message
+export async function deleteChatMessage(id: string): Promise<void> {
+  if (isSupabaseConfigured()) {
+    try {
+      await supabaseDeleteChatMessage(id);
+    } catch (e) {
+      console.error('Supabase delete chat error:', e);
+    }
+  } else {
+    try {
+      await fetch(`/api/chat/${id}`, { method: 'DELETE' });
+    } catch {
+      // offline fallback
+    }
+  }
+
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_MESSAGES, 'readwrite');
+    const store = tx.objectStore(STORE_MESSAGES);
+    store.delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
 // Save Current Active User ID
 export function setActiveUserId(userId: string) {
   localStorage.setItem('lilac_active_user', userId);
@@ -350,7 +494,7 @@ export function getActiveUserId(): string | null {
 
 // Clear all data (for reset)
 export async function clearAllVaultData(): Promise<void> {
-  if (isSupabaseConfigured) {
+  if (isSupabaseConfigured()) {
     try {
       await supabaseResetAll();
     } catch (e) {

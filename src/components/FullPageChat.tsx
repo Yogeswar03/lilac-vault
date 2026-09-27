@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Sparkles, Plus, Film, MessageCircle, Heart, Lock } from 'lucide-react';
+import { ArrowLeft, Send, Sparkles, Plus, Film, MessageCircle, Heart, Lock, Trash2 } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { LavenderLogo } from './LavenderLogo';
 
@@ -26,7 +26,7 @@ export const FullPageChat: React.FC<FullPageChatProps> = ({
   onOpenReel,
   onOpenProfile,
 }) => {
-  const { vault, chatMessages, currentUser, partnerUser, sendChatMessage, triggerSparkleExplosion } = useVault();
+  const { vault, chatMessages, currentUser, partnerUser, sendChatMessage, deleteChatMessage, triggerSparkleExplosion } = useVault();
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -203,16 +203,46 @@ export const FullPageChat: React.FC<FullPageChatProps> = ({
                         </div>
                       )}
 
-                      <div
-                        className={`rounded-2xl px-4 py-2.5 text-xs sm:text-sm font-medium leading-relaxed shadow-xs transition-all ${
-                          isSpecial
-                            ? 'bg-gradient-to-r from-purple-700 via-lavender-600 to-indigo-700 text-white font-bold shadow-cute'
-                            : isMe
-                            ? 'bg-gradient-to-r from-purple-700 to-lavender-600 text-white rounded-br-xs'
-                            : 'bg-white text-purple-950 border border-lavender-200 rounded-bl-xs'
-                        }`}
-                      >
-                        {msg.text}
+                      <div className="flex items-center gap-1 group/msg">
+                        {isMe && (
+                          <button
+                            onClick={() => {
+                              if (window.confirm('Delete this message?')) {
+                                deleteChatMessage(msg.id);
+                              }
+                            }}
+                            className="opacity-40 hover:opacity-100 p-1 text-purple-400 hover:text-rose-500 rounded transition-all flex-shrink-0"
+                            title="Delete message"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+
+                        <div
+                          className={`rounded-2xl px-4 py-2.5 text-xs sm:text-sm font-medium leading-relaxed shadow-xs transition-all ${
+                            isSpecial
+                              ? 'bg-gradient-to-r from-purple-700 via-lavender-600 to-indigo-700 text-white font-bold shadow-cute'
+                              : isMe
+                              ? 'bg-gradient-to-r from-purple-700 to-lavender-600 text-white rounded-br-xs'
+                              : 'bg-white text-purple-950 border border-lavender-200 rounded-bl-xs'
+                          }`}
+                        >
+                          {msg.text}
+                        </div>
+
+                        {!isMe && (
+                          <button
+                            onClick={() => {
+                              if (window.confirm('Delete this message?')) {
+                                deleteChatMessage(msg.id);
+                              }
+                            }}
+                            className="opacity-40 hover:opacity-100 p-1 text-purple-400 hover:text-rose-500 rounded transition-all flex-shrink-0"
+                            title="Delete message"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
                       </div>
                     </div>
 

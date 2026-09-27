@@ -1,34 +1,106 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Vault, Memory, ChatMessage } from '../types';
 
-// Load Supabase credentials from Vite environment variables
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// Retrieve credentials from environment variables or in-app localStorage settings
+export function getSupabaseCredentials(): { url: string; key: string } {
+  const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
+  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+  const localUrl = localStorage.getItem('lilac_supabase_url') || '';
+  const localKey = localStorage.getItem('lilac_supabase_anon_key') || '';
 
-// Returns true if valid Supabase credentials are configured
-export const isSupabaseConfigured = Boolean(
-  supabaseUrl &&
-  supabaseAnonKey &&
-  supabaseUrl !== 'https://your-project.supabase.co' &&
-  !supabaseUrl.includes('placeholder')
-);
+  const url = (envUrl || localUrl).trim();
+  const key = (envKey || localKey).trim();
 
-// Supabase client instance (or null if offline/unconfigured)
-export const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
+  return { url, key };
+}
+
+export function isSupabaseConfigured(): boolean {
+  const { url, key } = getSupabaseCredentials();
+  return Boolean(
+    url &&
+    key &&
+    url !== 'https://your-project.supabase.co' &&
+    url !== 'https://your-project-ref.supabase.co' &&
+    !url.includes('placeholder')
+  );
+}
+
+// Save in-app Supabase credentials
+export function setSupabaseCredentials(url: string, key: string) {
+  localStorage.setItem('lilac_supabase_url', url.trim());
+  localStorage.setItem('lilac_supabase_anon_key', key.trim());
+  cachedClient = null;
+}
+
+// Clear in-app Supabase credentials
+export function clearSupabaseCredentials() {
+  localStorage.removeItem('lilac_supabase_url');
+  localStorage.removeItem('lilac_supabase_anon_key');
+  cachedClient = null;
+}
+
+// Test connection to Supabase with provided or saved credentials
+export async function testSupabaseConnection(
+  testUrl?: string,
+  testKey?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const creds = getSupabaseCredentials();
+    const url = (testUrl || creds.url).trim();
+    const key = (testKey || creds.key).trim();
+
+    if (!url || !key) {
+      return { success: false, error: 'Project URL and Anon Key are required.' };
+    }
+
+    const testClient = createClient(url, key);
+    const { error } = await testClient.from('vaults').select('id').limit(1);
+    if (error) {
+      if (error.message?.includes('relation "public.vaults" does not exist') || error.code === '42P01') {
+        return {
+          success: false,
+          error: 'Connected to Supabase, but "vaults" table does not exist. Please run the SQL schema in Supabase SQL Editor!',
+        };
+      }
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to connect to Supabase.' };
+  }
+}
+
+let cachedClient: SupabaseClient | null = null;
+
+export function getSupabaseClient(): SupabaseClient | null {
+  if (cachedClient) return cachedClient;
+  const { url, key } = getSupabaseCredentials();
+  if (isSupabaseConfigured()) {
+    try {
+      cachedClient = createClient(url, key);
+      return cachedClient;
+    } catch (e) {
+      console.error('Error creating Supabase client:', e);
+      return null;
+    }
+  }
+  return null;
+}
+
+export const supabase = getSupabaseClient();
 
 // ==========================================
 // VAULT METHODS
 // ==========================================
 
 export async function supabaseSaveVault(vault: Vault): Promise<void> {
-  if (!supabase) return;
+  const client = getSupabaseClient();
+  if (!client) return;
 
-  const { error } = await supabase.from('vaults').upsert({
+  const { error } = await client.from('vaults').upsert({
     id: vault.id,
     name: vault.name,
-    access_code: vault.accessCode,
+    access_code: vault.accessCode.trim().toUpperCase(),
     created_at: vault.createdAt,
     users: vault.users,
     is_locked: vault.isLocked,
@@ -41,9 +113,10 @@ export async function supabaseSaveVault(vault: Vault): Promise<void> {
 }
 
 export async function supabaseGetVault(): Promise<Vault | null> {
-  if (!supabase) return null;
+  const client = getSupabaseClient();
+  if (!client) return null;
 
-  const { data, error } = await supabase
+  const { data, error } = await client
     .from('vaults')
     .select('*')
     .order('created_at', { ascending: false })
@@ -67,14 +140,45 @@ export async function supabaseGetVault(): Promise<Vault | null> {
   };
 }
 
+// Query Supabase explicitly for the vault matching the provided access code
+export async function supabaseGetVaultByCode(accessCode: string): Promise<Vault | null> {
+  const client = getSupabaseClient();
+  if (!client) return null;
+
+  const cleanCode = accessCode.trim().toUpperCase();
+
+  const { data, error } = await client
+    .from('vaults')
+    .select('*')
+    .eq('access_code', cleanCode)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Supabase error fetching vault by code:', error);
+    return null;
+  }
+
+  if (!data) return null;
+
+  return {
+    id: data.id,
+    name: data.name,
+    accessCode: data.access_code,
+    createdAt: data.created_at,
+    users: data.users || [],
+    isLocked: data.is_locked,
+  };
+}
+
 // ==========================================
 // MEMORIES METHODS
 // ==========================================
 
 export async function supabaseSaveMemory(memory: Memory): Promise<void> {
-  if (!supabase) return;
+  const client = getSupabaseClient();
+  if (!client) return;
 
-  const { error } = await supabase.from('memories').upsert({
+  const { error } = await client.from('memories').upsert({
     id: memory.id,
     vault_id: memory.vaultId,
     uploader_id: memory.uploaderId,
@@ -97,13 +201,16 @@ export async function supabaseSaveMemory(memory: Memory): Promise<void> {
   }
 }
 
-export async function supabaseGetAllMemories(): Promise<Memory[]> {
-  if (!supabase) return [];
+export async function supabaseGetAllMemories(vaultId?: string): Promise<Memory[]> {
+  const client = getSupabaseClient();
+  if (!client) return [];
 
-  const { data, error } = await supabase
-    .from('memories')
-    .select('*')
-    .order('date', { ascending: false });
+  let query = client.from('memories').select('*').order('date', { ascending: false });
+  if (vaultId) {
+    query = query.eq('vault_id', vaultId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error('Supabase error fetching memories:', error);
@@ -128,9 +235,10 @@ export async function supabaseGetAllMemories(): Promise<Memory[]> {
 }
 
 export async function supabaseDeleteMemory(id: string): Promise<void> {
-  if (!supabase) return;
+  const client = getSupabaseClient();
+  if (!client) return;
 
-  const { error } = await supabase.from('memories').delete().eq('id', id);
+  const { error } = await client.from('memories').delete().eq('id', id);
   if (error) {
     console.error('Supabase error deleting memory:', error);
     throw error;
@@ -142,9 +250,10 @@ export async function supabaseDeleteMemory(id: string): Promise<void> {
 // ==========================================
 
 export async function supabaseSaveChatMessage(msg: ChatMessage): Promise<void> {
-  if (!supabase) return;
+  const client = getSupabaseClient();
+  if (!client) return;
 
-  const { error } = await supabase.from('chat_messages').upsert({
+  const { error } = await client.from('chat_messages').upsert({
     id: msg.id,
     vault_id: msg.vaultId,
     sender_id: msg.senderId,
@@ -161,13 +270,16 @@ export async function supabaseSaveChatMessage(msg: ChatMessage): Promise<void> {
   }
 }
 
-export async function supabaseGetAllChatMessages(): Promise<ChatMessage[]> {
-  if (!supabase) return [];
+export async function supabaseGetAllChatMessages(vaultId?: string): Promise<ChatMessage[]> {
+  const client = getSupabaseClient();
+  if (!client) return [];
 
-  const { data, error } = await supabase
-    .from('chat_messages')
-    .select('*')
-    .order('created_at', { ascending: true });
+  let query = client.from('chat_messages').select('*').order('created_at', { ascending: true });
+  if (vaultId) {
+    query = query.eq('vault_id', vaultId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error('Supabase error fetching chat messages:', error);
@@ -186,6 +298,17 @@ export async function supabaseGetAllChatMessages(): Promise<ChatMessage[]> {
   }));
 }
 
+export async function supabaseDeleteChatMessage(id: string): Promise<void> {
+  const client = getSupabaseClient();
+  if (!client) return;
+
+  const { error } = await client.from('chat_messages').delete().eq('id', id);
+  if (error) {
+    console.error('Supabase error deleting chat message:', error);
+    throw error;
+  }
+}
+
 // ==========================================
 // REALTIME SUBSCRIPTION
 // ==========================================
@@ -195,9 +318,10 @@ export function supabaseSubscribeToChanges(callbacks: {
   onMemoryChange?: () => void;
   onChatChange?: () => void;
 }) {
-  if (!supabase) return () => {};
+  const client = getSupabaseClient();
+  if (!client) return () => {};
 
-  const channel = supabase
+  const channel = client
     .channel('lilac-realtime-channel')
     .on(
       'postgres_changes',
@@ -217,7 +341,7 @@ export function supabaseSubscribeToChanges(callbacks: {
     .subscribe();
 
   return () => {
-    supabase?.removeChannel(channel);
+    client?.removeChannel(channel);
   };
 }
 
@@ -226,8 +350,9 @@ export function supabaseSubscribeToChanges(callbacks: {
 // ==========================================
 
 export async function supabaseResetAll(): Promise<void> {
-  if (!supabase) return;
-  await supabase.from('chat_messages').delete().neq('id', '___');
-  await supabase.from('memories').delete().neq('id', '___');
-  await supabase.from('vaults').delete().neq('id', '___');
+  const client = getSupabaseClient();
+  if (!client) return;
+  await client.from('chat_messages').delete().neq('id', '___');
+  await client.from('memories').delete().neq('id', '___');
+  await client.from('vaults').delete().neq('id', '___');
 }

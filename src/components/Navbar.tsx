@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Film, Plus, HelpCircle, Lock, MessageCircle, LogOut, Camera } from 'lucide-react';
+import { Sparkles, Film, Plus, HelpCircle, Lock, MessageCircle, LogOut, Camera, Cloud } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
+import { isSupabaseConfigured } from '../services/supabase';
 import { LavenderLogo } from './LavenderLogo';
 
 interface NavbarProps {
@@ -11,6 +12,7 @@ interface NavbarProps {
   onOpenReel: () => void;
   onOpenHowItWorks: () => void;
   onOpenProfile: () => void;
+  onOpenCloudSettings: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -20,6 +22,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenReel,
   onOpenHowItWorks,
   onOpenProfile,
+  onOpenCloudSettings,
 }) => {
   const { vault, currentUser, partnerUser, chatMessages, logoutUser } = useVault();
 
@@ -133,6 +136,24 @@ export const Navbar: React.FC<NavbarProps> = ({
             title="How this 2-user capsule works"
           >
             <HelpCircle className="w-5 h-5" />
+          </motion.button>
+
+          {/* Cloud Sync Status */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onOpenCloudSettings}
+            className={`p-2 rounded-xl transition-colors flex items-center gap-1 text-xs font-bold ${
+              isSupabaseConfigured()
+                ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200'
+                : 'text-purple-700 hover:bg-lavender-100'
+            }`}
+            title={isSupabaseConfigured() ? 'Cloud Sync Active 🟢' : 'Connect Cloud Database ☁️'}
+          >
+            <Cloud className="w-4 h-4" />
+            <span className="hidden lg:inline text-[11px]">
+              {isSupabaseConfigured() ? 'Cloud 🟢' : 'Sync'}
+            </span>
           </motion.button>
 
           {/* User profile / Logout */}

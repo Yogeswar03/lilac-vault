@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Lock, Key, Users, ArrowRight, PlayCircle, LogIn, CheckCircle } from 'lucide-react';
+import { Sparkles, Lock, Key, Users, ArrowRight, PlayCircle, LogIn, CheckCircle, Cloud } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
+import { isSupabaseConfigured } from '../services/supabase';
 import { LavenderLogo } from './LavenderLogo';
 
 const AVATAR_OPTIONS = ['🪻', '☕', '🌿', '✨', '📸', '🌙', '🎨', '🧁', '🌊', '🍓', '🧸', '🌸'];
 
-export const OnboardingModal: React.FC<{ onOpenHowItWorks: () => void }> = ({ onOpenHowItWorks }) => {
+export const OnboardingModal: React.FC<{
+  onOpenHowItWorks: () => void;
+  onOpenCloudSettings: () => void;
+}> = ({ onOpenHowItWorks, onOpenCloudSettings }) => {
   const { vault, createVault, joinVault, startDemoMode, loginUser, loginWithCode } = useVault();
 
   // Tab state: 'profiles' | 'create' | 'join' | 'demo'
@@ -123,14 +127,29 @@ export const OnboardingModal: React.FC<{ onOpenHowItWorks: () => void }> = ({ on
             A private memory capsule strictly reserved for <strong className="text-purple-900 font-bold">two people</strong>.
           </p>
 
-          <div className="mt-2.5 flex items-center justify-center gap-2">
+          <div className="mt-2.5 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
             <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-lavender-100 text-purple-800 border border-lavender-200">
               <Lock className="w-3 h-3 text-purple-600" />
               Strict 2-User Lock 🔒
             </span>
+
+            <button
+              type="button"
+              onClick={onOpenCloudSettings}
+              className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-all ${
+                isSupabaseConfigured()
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                  : 'bg-lavender-100 hover:bg-lavender-200 text-purple-800 border-lavender-300'
+              }`}
+              title="Configure Cloud Sync across 2 phones"
+            >
+              <Cloud className="w-3 h-3 text-purple-600" />
+              <span>{isSupabaseConfigured() ? 'Cloud Active 🟢' : 'Connect Cloud ☁️'}</span>
+            </button>
+
             <button
               onClick={onOpenHowItWorks}
-              className="text-[11px] text-purple-700 font-semibold underline hover:text-purple-950 ml-1"
+              className="text-[11px] text-purple-700 font-semibold underline hover:text-purple-950 ml-0.5"
             >
               How it works
             </button>
@@ -192,9 +211,21 @@ export const OnboardingModal: React.FC<{ onOpenHowItWorks: () => void }> = ({ on
 
         {/* Feedback alerts */}
         {errorMessage && (
-          <div className="mb-3.5 p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
-            <span>⚠️</span>
-            <span>{errorMessage}</span>
+          <div className="mb-3.5 p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <span>⚠️</span>
+              <span className="leading-snug">{errorMessage}</span>
+            </div>
+            {!isSupabaseConfigured() && (
+              <button
+                type="button"
+                onClick={onOpenCloudSettings}
+                className="px-3 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs inline-flex items-center justify-center gap-1.5 transition-colors self-start shadow-xs"
+              >
+                <Cloud className="w-3.5 h-3.5" />
+                <span>Configure Free Cloud Sync (2 Phones)</span>
+              </button>
+            )}
           </div>
         )}
 
@@ -423,6 +454,23 @@ export const OnboardingModal: React.FC<{ onOpenHowItWorks: () => void }> = ({ on
               </div>
             ) : (
               <form onSubmit={handleVerifyCodeOrJoin} className="space-y-3.5">
+                {!isSupabaseConfigured() && (
+                  <div className="p-3 bg-lavender-50 rounded-xl border border-lavender-200 text-xs text-purple-800 flex items-start gap-2">
+                    <Cloud className="w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <span>Joining from a separate phone? </span>
+                      <button
+                        type="button"
+                        onClick={onOpenCloudSettings}
+                        className="font-bold underline text-purple-900 hover:text-purple-950"
+                      >
+                        Connect Free Cloud Sync
+                      </button>
+                      <span> so phones can talk to each other!</span>
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-xs font-bold text-purple-900 uppercase tracking-wider mb-1">
                     Friend's Access Code

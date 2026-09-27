@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Check, User, Sparkles, Edit3 } from 'lucide-react';
+import { X, Check, User, Sparkles, Edit3, Trash2 } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 
 interface EditProfileModalProps {
@@ -11,7 +11,7 @@ interface EditProfileModalProps {
 const AVATARS = ['🪻', '☕', '🌿', '✨', '📸', '🌙', '🎨', '🧁', '🌊', '🍓', '🧸', '🌸', '🦊', '💫'];
 
 export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose }) => {
-  const { vault, currentUser, partnerUser, updateUserProfile } = useVault();
+  const { vault, currentUser, partnerUser, updateUserProfile, resetAllData } = useVault();
 
   // Selected user to edit (defaults to currentUser)
   const [targetUserId, setTargetUserId] = useState<string>(currentUser?.id || '');
@@ -152,6 +152,27 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
             )}
           </button>
         </form>
+
+        {/* Reset Capsule Danger Option */}
+        <div className="mt-5 pt-3.5 border-t border-lavender-200 text-center">
+          <button
+            type="button"
+            onClick={() => {
+              if (
+                window.confirm(
+                  'Are you sure you want to delete this capsule and clear all memories and chat? This cannot be undone.'
+                )
+              ) {
+                resetAllData();
+                onClose();
+              }
+            }}
+            className="text-xs text-rose-500 hover:text-rose-700 font-semibold inline-flex items-center gap-1.5 transition-colors p-1"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Reset & Delete Capsule</span>
+          </button>
+        </div>
       </motion.div>
     </div>
   );

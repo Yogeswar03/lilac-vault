@@ -10,6 +10,7 @@ import { FullPageChat } from './components/FullPageChat';
 import { EditProfileModal } from './components/EditProfileModal';
 import { HowItWorksModal } from './components/HowItWorksModal';
 import { OnboardingModal } from './components/OnboardingModal';
+import { CloudSettingsModal } from './components/CloudSettingsModal';
 import { DemoSwitcherBar } from './components/DemoSwitcherBar';
 import { LavenderLogo } from './components/LavenderLogo';
 import { Memory } from './types';
@@ -25,6 +26,7 @@ const MainAppContent: React.FC = () => {
   const [isReelOpen, setIsReelOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
+  const [isCloudSettingsOpen, setIsCloudSettingsOpen] = useState(false);
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
 
   if (isLoading) {
@@ -44,11 +46,18 @@ const MainAppContent: React.FC = () => {
   if (!vault || !currentUser) {
     return (
       <div className="min-h-screen sparkle-bg flex items-center justify-center p-4">
-        <OnboardingModal onOpenHowItWorks={() => setIsHowItWorksOpen(true)} />
+        <OnboardingModal
+          onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
+          onOpenCloudSettings={() => setIsCloudSettingsOpen(true)}
+        />
         <HowItWorksModal
           isOpen={isHowItWorksOpen}
           onClose={() => setIsHowItWorksOpen(false)}
           onStartDemo={startDemoMode}
+        />
+        <CloudSettingsModal
+          isOpen={isCloudSettingsOpen}
+          onClose={() => setIsCloudSettingsOpen(false)}
         />
       </div>
     );
@@ -74,6 +83,7 @@ const MainAppContent: React.FC = () => {
             onOpenReel={() => setIsReelOpen(true)}
             onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
             onOpenProfile={() => setIsProfileOpen(true)}
+            onOpenCloudSettings={() => setIsCloudSettingsOpen(true)}
           />
 
           <HeroBanner
@@ -117,6 +127,11 @@ const MainAppContent: React.FC = () => {
         isOpen={isHowItWorksOpen}
         onClose={() => setIsHowItWorksOpen(false)}
         onStartDemo={startDemoMode}
+      />
+
+      <CloudSettingsModal
+        isOpen={isCloudSettingsOpen}
+        onClose={() => setIsCloudSettingsOpen(false)}
       />
 
       {/* Floating Perspective / Demo Switcher Bar */}

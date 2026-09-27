@@ -3,18 +3,21 @@ import confetti from 'canvas-confetti';
 import { Vault, User, Memory, MemoryNote, ChatMessage } from '../types';
 import {
   getVault,
+  getVaultByCode,
   saveVault,
   getAllMemories,
   saveMemory,
   deleteMemory as dbDeleteMemory,
   getAllChatMessages,
   saveChatMessage as dbSaveChatMessage,
+  deleteChatMessage as dbDeleteChatMessage,
   getActiveUserId,
   setActiveUserId as dbSetActiveUserId,
   compressImage,
   readVideoFile,
   seedDemoData,
   clearAllVaultData,
+  syncLocalToCloud,
 } from '../services/storage';
 import { isSupabaseConfigured, supabaseSubscribeToChanges } from '../services/supabase';
 
@@ -33,14 +36,17 @@ interface VaultContextType {
   uploadMemory: (data: { file: File; caption: string; tags: string[]; date: string; aiMood?: string }) => Promise<void>;
   toggleHeart: (memoryId: string) => Promise<void>;
   addNote: (memoryId: string, text: string) => Promise<void>;
+  deleteNote: (memoryId: string, noteId: string) => Promise<void>;
   deleteMemory: (memoryId: string) => Promise<void>;
   sendChatMessage: (text: string, type?: 'text' | 'sparkle_burst') => Promise<void>;
+  deleteChatMessage: (msgId: string) => Promise<void>;
   updateUserProfile: (userId: string, newName: string, newAvatar: string) => Promise<void>;
   loginUser: (userId: string) => void;
   loginWithCode: (accessCode: string) => Promise<{ success: boolean; error?: string; users?: User[] }>;
   logoutUser: () => void;
   triggerSparkleExplosion: () => void;
   resetAllData: () => Promise<void>;
+  syncCloud: () => Promise<{ success: boolean; error?: string }>;
 }
 
 const VaultContext = createContext<VaultContextType | undefined>(undefined);
@@ -121,7 +127,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Subscribe to instant Supabase realtime WebSocket events if configured
     let unsubscribeRealtime = () => {};
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured()) {
       unsubscribeRealtime = supabaseSubscribeToChanges({
         onVaultChange: async () => {
           const v = await getVault();
@@ -195,13 +201,15 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     memberName: string,
     avatar: string
   ): Promise<{ success: boolean; error?: string }> => {
-    const storedVault = await getVault();
+    const cleanCode = accessCode.trim().toUpperCase();
+    const storedVault = await getVaultByCode(cleanCode);
     if (!storedVault) {
-      return { success: false, error: 'No active vault found. Ask your friend to create one first!' };
-    }
-
-    if (storedVault.accessCode.trim().toUpperCase() !== accessCode.trim().toUpperCase()) {
-      return { success: false, error: 'Invalid access code. Please check the code and try again!' };
+      return {
+        success: false,
+        error: isSupabaseConfigured()
+          ? `Could not find capsule "${cleanCode}". Please verify the code with your friend!`
+          : `Capsule "${cleanCode}" not found. For two devices to sync across the internet, please configure Supabase in Cloud Settings!`,
+      };
     }
 
     if (storedVault.users.length >= 2) {
@@ -375,6 +383,30 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setMemories((prev) => prev.filter((m) => m.id !== memoryId));
   };
 
+  // Delete Note / Comment on a memory
+  const deleteNote = async (memoryId: string, noteId: string) => {
+    setMemories((prev) =>
+      prev.map((mem) => {
+        if (mem.id !== memoryId) return mem;
+        const updated = { ...mem, notes: mem.notes.filter((n) => n.id !== noteId) };
+        saveMemory(updated);
+        return updated;
+      })
+    );
+  };
+
+  // Sync Cloud Data
+  const syncCloud = async (): Promise<{ success: boolean; error?: string }> => {
+    const res = await syncLocalToCloud();
+    if (res.success) {
+      const allMems = await getAllMemories();
+      setMemories(allMems);
+      const allMsgs = await getAllChatMessages();
+      setChatMessages(allMsgs);
+    }
+    return res;
+  };
+
   // Update user profile/nickname after pairing
   const updateUserProfile = async (userId: string, newName: string, newAvatar: string) => {
     if (!vault) return;
@@ -416,15 +448,23 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  // Delete Chat Message
+  const deleteChatMessage = async (msgId: string) => {
+    await dbDeleteChatMessage(msgId);
+    setChatMessages((prev) => prev.filter((m) => m.id !== msgId));
+  };
+
   // Login using Access Code
   const loginWithCode = async (accessCode: string): Promise<{ success: boolean; error?: string; users?: User[] }> => {
-    const remoteVault = await getVault();
+    const cleanCode = accessCode.trim().toUpperCase();
+    const remoteVault = await getVaultByCode(cleanCode);
     if (!remoteVault) {
-      return { success: false, error: 'No active capsule found. Please create one first!' };
-    }
-
-    if (remoteVault.accessCode.trim().toUpperCase() !== accessCode.trim().toUpperCase()) {
-      return { success: false, error: 'Invalid access code. Please check your code!' };
+      return {
+        success: false,
+        error: isSupabaseConfigured()
+          ? `Capsule "${cleanCode}" not found. Please double-check the code with your friend!`
+          : `Capsule "${cleanCode}" not found on server. To link across different phones, connect Supabase in Cloud Settings!`,
+      };
     }
 
     setVault(remoteVault);
@@ -470,14 +510,17 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         uploadMemory,
         toggleHeart,
         addNote,
+        deleteNote,
         deleteMemory,
         sendChatMessage,
+        deleteChatMessage,
         updateUserProfile,
         loginUser,
         loginWithCode,
         logoutUser,
         triggerSparkleExplosion,
         resetAllData,
+        syncCloud,
       }}
     >
       {children}

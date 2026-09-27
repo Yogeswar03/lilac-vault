@@ -10,7 +10,7 @@ interface MemoryLightboxProps {
 }
 
 export const MemoryLightbox: React.FC<MemoryLightboxProps> = ({ memory, onClose }) => {
-  const { currentUser, toggleHeart, addNote, deleteMemory } = useVault();
+  const { currentUser, toggleHeart, addNote, deleteNote, deleteMemory } = useVault();
   const [newNoteText, setNewNoteText] = useState('');
   const [showSparkleBurst, setShowSparkleBurst] = useState(false);
 
@@ -32,7 +32,7 @@ export const MemoryLightbox: React.FC<MemoryLightboxProps> = ({ memory, onClose 
   };
 
   const handleDelete = () => {
-    if (window.confirm('Are you sure you want to remove this memory from your capsule?')) {
+    if (window.confirm(`Delete this memory ("${memory.caption || 'memory'}") from your capsule? This cannot be undone.`)) {
       deleteMemory(memory.id);
       onClose();
     }
@@ -118,7 +118,7 @@ export const MemoryLightbox: React.FC<MemoryLightboxProps> = ({ memory, onClose 
               </div>
             </div>
 
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               <button
                 onClick={handleDownload}
                 className="p-2 rounded-xl text-purple-600 hover:bg-lavender-100 transition-colors"
@@ -128,10 +128,11 @@ export const MemoryLightbox: React.FC<MemoryLightboxProps> = ({ memory, onClose 
               </button>
               <button
                 onClick={handleDelete}
-                className="p-2 rounded-xl text-rose-500 hover:bg-rose-50 transition-colors"
+                className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-colors flex items-center gap-1 text-xs font-bold"
                 title="Delete from Capsule"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete</span>
               </button>
             </div>
           </div>
@@ -209,9 +210,22 @@ export const MemoryLightbox: React.FC<MemoryLightboxProps> = ({ memory, onClose 
                         <span>{note.userAvatar}</span>
                         <span>{note.userName}</span>
                       </span>
-                      <span className="text-[10px] text-purple-400">
-                        {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-purple-400">
+                          {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <button
+                          onClick={() => {
+                            if (window.confirm('Delete this note?')) {
+                              deleteNote(memory.id, note.id);
+                            }
+                          }}
+                          className="text-purple-300 hover:text-rose-500 p-0.5 rounded transition-colors"
+                          title="Delete note"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
                     <p className="leading-snug">{note.text}</p>
                   </div>
