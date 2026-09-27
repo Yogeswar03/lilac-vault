@@ -48,13 +48,37 @@ alter table vaults enable row level security;
 alter table memories enable row level security;
 alter table chat_messages enable row level security;
 
--- 5. Access Policies (Anon access for paired members)
+-- 5. Access Policies (Safe idempotent creation)
+drop policy if exists "Allow all operations on vaults" on vaults;
 create policy "Allow all operations on vaults" on vaults for all using (true) with check (true);
+
+drop policy if exists "Allow all operations on memories" on memories;
 create policy "Allow all operations on memories" on memories for all using (true) with check (true);
+
+drop policy if exists "Allow all operations on chat_messages" on chat_messages;
 create policy "Allow all operations on chat_messages" on chat_messages for all using (true) with check (true);
 
--- 6. Enable Realtime Replication
--- Allows both friends to see photos and messages instantly as they arrive
-alter publication supabase_realtime add table vaults;
-alter publication supabase_realtime add table memories;
-alter publication supabase_realtime add table chat_messages;
+-- 6. Enable Realtime Replication safely
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and tablename = 'vaults'
+  ) then
+    alter publication supabase_realtime add table vaults;
+  end if;
+  
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and tablename = 'memories'
+  ) then
+    alter publication supabase_realtime add table memories;
+  end if;
+  
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and tablename = 'chat_messages'
+  ) then
+    alter publication supabase_realtime add table chat_messages;
+  end if;
+end $$;

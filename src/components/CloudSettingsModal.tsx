@@ -60,14 +60,39 @@ alter table vaults enable row level security;
 alter table memories enable row level security;
 alter table chat_messages enable row level security;
 
+drop policy if exists "Allow all on vaults" on vaults;
 create policy "Allow all on vaults" on vaults for all using (true) with check (true);
+
+drop policy if exists "Allow all on memories" on memories;
 create policy "Allow all on memories" on memories for all using (true) with check (true);
+
+drop policy if exists "Allow all on chat_messages" on chat_messages;
 create policy "Allow all on chat_messages" on chat_messages for all using (true) with check (true);
 
--- 5. Realtime Sync
-alter publication supabase_realtime add table vaults;
-alter publication supabase_realtime add table memories;
-alter publication supabase_realtime add table chat_messages;`;
+-- 5. Realtime Sync safely
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and tablename = 'vaults'
+  ) then
+    alter publication supabase_realtime add table vaults;
+  end if;
+  
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and tablename = 'memories'
+  ) then
+    alter publication supabase_realtime add table memories;
+  end if;
+  
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and tablename = 'chat_messages'
+  ) then
+    alter publication supabase_realtime add table chat_messages;
+  end if;
+end $$;`;
 
 export const CloudSettingsModal: React.FC<CloudSettingsModalProps> = ({ isOpen, onClose }) => {
   const { syncCloud } = useVault();
