@@ -64,20 +64,20 @@ export const MemoryLightbox: React.FC<MemoryLightboxProps> = ({ memory, onClose 
         {/* Media Side (Left) */}
         <div
           onDoubleClick={handleHeartClick}
-          className="relative flex-1 bg-lavender-950/90 flex items-center justify-center min-h-[300px] md:min-h-[500px] p-2 select-none overflow-hidden"
+          className="relative flex-1 bg-lavender-950/90 flex items-center justify-center min-h-[240px] md:min-h-[450px] max-h-[55vh] md:max-h-[85vh] p-2 select-none overflow-hidden"
         >
           {memory.type === 'video' ? (
             <video
               src={memory.mediaUrl}
               controls
               autoPlay
-              className="max-h-[75vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl"
+              className="max-h-[50vh] md:max-h-[80vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl"
             />
           ) : (
             <img
               src={memory.mediaUrl}
               alt={memory.caption}
-              className="max-h-[75vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl"
+              className="max-h-[50vh] md:max-h-[80vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl"
             />
           )}
 

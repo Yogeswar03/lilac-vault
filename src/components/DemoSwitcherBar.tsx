@@ -6,7 +6,8 @@ import { useVault } from '../context/VaultContext';
 export const DemoSwitcherBar: React.FC<{ onOpenHowItWorks: () => void }> = ({ onOpenHowItWorks }) => {
   const { vault, currentUser, switchActiveUser, isDemoMode, startDemoMode } = useVault();
 
-  if (!vault || vault.users.length === 0) return null;
+  // Only show demo perspective switcher when explicitly in showcase demo mode
+  if (!isDemoMode || !vault || vault.users.length === 0) return null;
 
   return (
     <motion.div

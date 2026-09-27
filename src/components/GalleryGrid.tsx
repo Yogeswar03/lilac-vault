@@ -137,7 +137,7 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
       ) : (
         <motion.div
           layout
-          className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-5 space-y-5"
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5"
         >
           <AnimatePresence>
             {filteredMemories.map((memory) => {
@@ -150,19 +150,19 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9 }}
                   transition={{ duration: 0.3 }}
-                  className="break-inside-avoid"
+                  className="flex flex-col"
                 >
-                  <div className="polaroid-frame rounded-2xl cursor-pointer group relative overflow-hidden bg-white">
-                    {/* Media Container */}
+                  <div className="polaroid-frame rounded-2xl cursor-pointer group relative overflow-hidden bg-white h-full flex flex-col justify-between">
+                    {/* Media Container with Consistent 4:5 Aspect Ratio */}
                     <div
                       onClick={() => onSelectMemory(memory)}
-                      className="relative overflow-hidden rounded-xl bg-purple-100/50 aspect-auto"
+                      className="relative overflow-hidden rounded-xl bg-purple-100/50 aspect-[4/5] w-full flex-shrink-0"
                     >
                       {memory.type === 'video' ? (
-                        <div className="relative">
+                        <div className="relative w-full h-full">
                           <video
                             src={memory.mediaUrl}
-                            className="w-full h-auto object-cover rounded-xl"
+                            className="w-full h-full object-cover rounded-xl"
                             muted
                             playsInline
                             loop
@@ -178,7 +178,7 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
                           src={memory.mediaUrl}
                           alt={memory.caption}
                           loading="lazy"
-                          className="w-full h-auto object-cover rounded-xl transition-transform duration-500 group-hover:scale-105"
+                          className="w-full h-full object-cover rounded-xl transition-transform duration-500 group-hover:scale-105"
                         />
                       )}
 
