@@ -93,6 +93,12 @@ export function readVideoFile(file: File): Promise<string> {
 
 // Save Vault (Supabase Cloud + Local API + IndexedDB)
 export async function saveVault(vault: Vault): Promise<void> {
+  if (typeof window !== 'undefined') {
+    if (vault.id) localStorage.setItem('lilac_vault_id', vault.id);
+    if (vault.accessCode) localStorage.setItem('lilac_vault_code', vault.accessCode.trim().toUpperCase());
+    if (vault.folders) localStorage.setItem('lilac_folders', JSON.stringify(vault.folders));
+  }
+
   if (isSupabaseConfigured()) {
     try {
       await supabaseSaveVault(vault);
@@ -122,10 +128,12 @@ export async function saveVault(vault: Vault): Promise<void> {
 }
 
 // Get Vault (Supabase Cloud first, then Local API, then IndexedDB)
-export async function getVault(): Promise<Vault | null> {
+export async function getVault(targetIdOrCode?: string): Promise<Vault | null> {
+  const activeLookup = targetIdOrCode || (typeof window !== 'undefined' ? (localStorage.getItem('lilac_vault_code') || localStorage.getItem('lilac_vault_id') || undefined) : undefined);
+
   if (isSupabaseConfigured()) {
     try {
-      const cloudVault = await supabaseGetVault();
+      const cloudVault = await supabaseGetVault(activeLookup);
       if (cloudVault) {
         const db = await openDB();
         const tx = db.transaction(STORE_VAULT, 'readwrite');
@@ -158,8 +166,15 @@ export async function getVault(): Promise<Vault | null> {
     const store = tx.objectStore(STORE_VAULT);
     const req = store.getAll();
     req.onsuccess = () => {
-      if (req.result && req.result.length > 0) {
-        resolve(req.result[0]);
+      const vaults: Vault[] = req.result || [];
+      if (vaults.length > 0) {
+        if (targetIdOrCode) {
+          const clean = targetIdOrCode.trim().toUpperCase();
+          const match = vaults.find((v) => v.id === targetIdOrCode || v.accessCode?.trim().toUpperCase() === clean);
+          resolve(match || vaults[vaults.length - 1]);
+        } else {
+          resolve(vaults[vaults.length - 1]);
+        }
       } else {
         resolve(null);
       }
@@ -517,6 +532,9 @@ export async function clearAllVaultData(): Promise<void> {
     tx.objectStore(STORE_MESSAGES).clear();
     localStorage.removeItem('lilac_active_user');
     localStorage.removeItem('lilac_is_demo');
+    localStorage.removeItem('lilac_vault_id');
+    localStorage.removeItem('lilac_vault_code');
+    localStorage.removeItem('lilac_folders');
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });

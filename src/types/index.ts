@@ -14,6 +14,7 @@ export interface Vault {
   createdAt: string;
   users: User[];
   isLocked: boolean; // Once 2 users join, locked = true (strictly 2 users)
+  folders?: string[];
 }
 
 export interface MemoryNote {
@@ -40,6 +41,7 @@ export interface Memory {
   tags: string[];
   notes: MemoryNote[];
   aiMood?: string;
+  folder?: string;
 }
 
 export interface ChatMessage {

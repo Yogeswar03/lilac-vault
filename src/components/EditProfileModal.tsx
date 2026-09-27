@@ -15,11 +15,26 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
 
   // Selected user to edit (defaults to currentUser)
   const [targetUserId, setTargetUserId] = useState<string>(currentUser?.id || '');
-  const targetUser = vault?.users.find((u) => u.id === targetUserId) || currentUser;
-
-  const [name, setName] = useState(targetUser?.name || '');
-  const [avatar, setAvatar] = useState(targetUser?.avatar || '🪻');
+  const [name, setName] = useState('');
+  const [avatar, setAvatar] = useState('🪻');
   const [saved, setSaved] = useState(false);
+
+  // Sync state whenever modal opens, targetUserId changes, or vault.users updates
+  React.useEffect(() => {
+    if (isOpen && vault) {
+      const activeId = targetUserId && vault.users.some((u) => u.id === targetUserId)
+        ? targetUserId
+        : (currentUser?.id || vault.users[0]?.id || '');
+
+      setTargetUserId(activeId);
+      const u = vault.users.find((user) => user.id === activeId);
+      if (u) {
+        setName(u.name);
+        setAvatar(u.avatar);
+      }
+      setSaved(false);
+    }
+  }, [isOpen, targetUserId, vault?.users, currentUser?.id]);
 
   // Sync state if target changes
   const selectTarget = (uid: string) => {
@@ -36,7 +51,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || !targetUserId) return;
     await updateUserProfile(targetUserId, name.trim(), avatar);
     setSaved(true);
     setTimeout(() => {

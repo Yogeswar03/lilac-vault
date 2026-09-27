@@ -22,19 +22,32 @@ import {
 import { isSupabaseConfigured, supabaseSubscribeToChanges } from '../services/supabase';
 import { extractCodeFromUrlOrInput } from '../services/shareInvite';
 
+export const DEFAULT_FOLDERS = [
+  'General ✨',
+  'Trips & Travel 🌴',
+  'Cafe & Dates ☕',
+  'Cute Selfies 📸',
+];
+
 interface VaultContextType {
   vault: Vault | null;
   currentUser: User | null;
   partnerUser: User | null;
   memories: Memory[];
   chatMessages: ChatMessage[];
+  folders: string[];
+  activeFolder: string;
+  setActiveFolder: (folder: string) => void;
+  addFolder: (folderName: string) => Promise<void>;
+  deleteFolder: (folderName: string) => Promise<void>;
+  moveMemoryToFolder: (memoryId: string, folderName: string) => Promise<void>;
   isLoading: boolean;
   isDemoMode: boolean;
   createVault: (vaultName: string, hostName: string, avatar: string) => Promise<void>;
   joinVault: (accessCode: string, memberName: string, avatar: string) => Promise<{ success: boolean; error?: string }>;
   startDemoMode: () => Promise<void>;
   switchActiveUser: (userId: string) => void;
-  uploadMemory: (data: { file: File; caption: string; tags: string[]; date: string; aiMood?: string }) => Promise<void>;
+  uploadMemory: (data: { file: File; caption: string; tags: string[]; date: string; aiMood?: string; folder?: string }) => Promise<void>;
   toggleHeart: (memoryId: string) => Promise<void>;
   addNote: (memoryId: string, text: string) => Promise<void>;
   deleteNote: (memoryId: string, noteId: string) => Promise<void>;
@@ -59,6 +72,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [activeFolder, setActiveFolder] = useState<string>('All');
 
   // Initialize from storage on mount
   useEffect(() => {
@@ -130,6 +144,21 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     loadData();
 
+    const syncCurrentUserFromVault = (v: Vault) => {
+      const activeId = getActiveUserId();
+      if (activeId && v.users && v.users.length > 0) {
+        const foundUser = v.users.find((u) => u.id === activeId);
+        if (foundUser) {
+          setCurrentUser((prev) => {
+            if (!prev || prev.name !== foundUser.name || prev.avatar !== foundUser.avatar || prev.role !== foundUser.role) {
+              return foundUser;
+            }
+            return prev;
+          });
+        }
+      }
+    };
+
     // Background sync polling fallback across mobile & desktop
     const interval = setInterval(async () => {
       try {
@@ -141,6 +170,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
             return prev;
           });
+          syncCurrentUserFromVault(remoteVault);
           const remoteMems = await getAllMemories();
           setMemories((prev) => {
             if (prev.length !== remoteMems.length || JSON.stringify(prev) !== JSON.stringify(remoteMems)) {
@@ -171,7 +201,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       unsubscribeRealtime = supabaseSubscribeToChanges({
         onVaultChange: async () => {
           const v = await getVault();
-          if (v) setVault(v);
+          if (v) {
+            setVault(v);
+            syncCurrentUserFromVault(v);
+          }
         },
         onMemoryChange: async () => {
           const m = await getAllMemories();
@@ -199,6 +232,78 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const partnerUser = vault?.users.find((u) => u.id !== currentUser?.id) || null;
+
+  // Dynamically compute all folders (presets + custom vault folders + any existing memory folders)
+  const folders = React.useMemo(() => {
+    const list = new Set<string>(DEFAULT_FOLDERS);
+    if (vault?.folders) {
+      vault.folders.forEach((f) => {
+        if (f && f.trim()) list.add(f.trim());
+      });
+    }
+    memories.forEach((m) => {
+      if (m.folder && m.folder.trim()) list.add(m.folder.trim());
+    });
+    return Array.from(list);
+  }, [vault?.folders, memories]);
+
+  // Create a new folder
+  const addFolder = async (folderName: string) => {
+    const clean = folderName.trim();
+    if (!clean || !vault) return;
+    const currentFolders = vault.folders || DEFAULT_FOLDERS;
+    if (currentFolders.includes(clean)) return;
+
+    const updatedFolders = [...currentFolders, clean];
+    const updatedVault: Vault = {
+      ...vault,
+      folders: updatedFolders,
+    };
+    await saveVault(updatedVault);
+    setVault(updatedVault);
+  };
+
+  // Delete a custom folder (reassigns memories in it to General ✨)
+  const deleteFolder = async (folderName: string) => {
+    if (!vault) return;
+    const currentFolders = vault.folders || DEFAULT_FOLDERS;
+    const updatedFolders = currentFolders.filter((f) => f !== folderName);
+    const updatedVault: Vault = {
+      ...vault,
+      folders: updatedFolders,
+    };
+    await saveVault(updatedVault);
+    setVault(updatedVault);
+
+    // Reassign memories in this folder to General ✨
+    const affectedMems = memories.filter((m) => m.folder === folderName);
+    for (const mem of affectedMems) {
+      const updatedMem = { ...mem, folder: 'General ✨' };
+      await saveMemory(updatedMem);
+    }
+    setMemories((prev) =>
+      prev.map((m) => (m.folder === folderName ? { ...m, folder: 'General ✨' } : m))
+    );
+    if (activeFolder === folderName) {
+      setActiveFolder('All');
+    }
+  };
+
+  // Move memory to another folder
+  const moveMemoryToFolder = async (memoryId: string, folderName: string) => {
+    const cleanFolder = folderName.trim() || 'General ✨';
+    setMemories((prev) =>
+      prev.map((m) => {
+        if (m.id !== memoryId) return m;
+        const updated = { ...m, folder: cleanFolder };
+        saveMemory(updated);
+        return updated;
+      })
+    );
+    if (vault && (!vault.folders || !vault.folders.includes(cleanFolder))) {
+      await addFolder(cleanFolder);
+    }
+  };
 
   // Lavender, gold & rose sparkle explosion helper
   const triggerSparkleExplosion = () => {
@@ -346,6 +451,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     tags: string[];
     date: string;
     aiMood?: string;
+    folder?: string;
   }) => {
     if (!vault || !currentUser) return;
 
@@ -357,6 +463,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } else {
       mediaUrl = await compressImage(data.file);
     }
+
+    const assignedFolder = data.folder?.trim() || (activeFolder !== 'All' ? activeFolder : 'General ✨');
 
     const newMemory: Memory = {
       id: `mem_${Date.now()}`,
@@ -372,10 +480,15 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       tags: data.tags,
       notes: [],
       aiMood: data.aiMood || 'Lavender Vibes',
+      folder: assignedFolder,
     };
 
     await saveMemory(newMemory);
     setMemories((prev) => [newMemory, ...prev]);
+
+    if (assignedFolder && (!vault.folders || !vault.folders.includes(assignedFolder))) {
+      await addFolder(assignedFolder);
+    }
 
     triggerSparkleExplosion();
   };
@@ -569,6 +682,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         partnerUser,
         memories,
         chatMessages,
+        folders,
+        activeFolder,
+        setActiveFolder,
+        addFolder,
+        deleteFolder,
+        moveMemoryToFolder,
         isLoading,
         isDemoMode,
         createVault,

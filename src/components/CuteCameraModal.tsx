@@ -496,6 +496,7 @@ export const CuteCameraModal: React.FC<CuteCameraModalProps> = ({ isOpen, onClos
         tags,
         date: new Date().toISOString().split('T')[0],
         aiMood: `${activeProp.emoji} ${activeColor.moodTag}`,
+        folder: 'Cute Selfies 📸',
       });
 
       triggerSparkleExplosion();

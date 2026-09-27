@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Heart, MessageCircle, Download, Trash2, Calendar, Sparkles, Send } from 'lucide-react';
+import { X, Heart, MessageCircle, Download, Trash2, Calendar, Sparkles, Send, Folder } from 'lucide-react';
 import { Memory } from '../types';
 import { useVault } from '../context/VaultContext';
 
@@ -10,7 +10,7 @@ interface MemoryLightboxProps {
 }
 
 export const MemoryLightbox: React.FC<MemoryLightboxProps> = ({ memory, onClose }) => {
-  const { currentUser, toggleHeart, addNote, deleteNote, deleteMemory } = useVault();
+  const { currentUser, toggleHeart, addNote, deleteNote, deleteMemory, folders, moveMemoryToFolder } = useVault();
   const [newNoteText, setNewNoteText] = useState('');
   const [showSparkleBurst, setShowSparkleBurst] = useState(false);
 
@@ -163,6 +163,25 @@ export const MemoryLightbox: React.FC<MemoryLightboxProps> = ({ memory, onClose 
                 ))}
               </div>
             )}
+
+            {/* Folder & Reassignment */}
+            <div className="mt-3 flex items-center justify-between gap-2 p-2 rounded-xl bg-purple-50/70 border border-purple-200/60">
+              <div className="flex items-center gap-1.5 text-xs text-purple-900 font-bold">
+                <Folder className="w-3.5 h-3.5 text-purple-700" />
+                <span>Folder:</span>
+              </div>
+              <select
+                value={memory.folder || 'General ✨'}
+                onChange={(e) => moveMemoryToFolder(memory.id, e.target.value)}
+                className="px-2 py-1 rounded-lg border border-purple-200 bg-white text-purple-950 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-purple-400"
+              >
+                {folders.map((f) => (
+                  <option key={f} value={f}>
+                    📁 {f}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Reaction Bar */}

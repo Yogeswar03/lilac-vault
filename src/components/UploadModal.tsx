@@ -12,13 +12,16 @@ interface UploadModalProps {
 const COMMON_TAGS = ['cafe', 'picnic', 'sunset', 'laugh', 'roadtrip', 'silly', 'boba', 'cozy'];
 
 export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose }) => {
-  const { uploadMemory, currentUser } = useVault();
+  const { uploadMemory, currentUser, folders, activeFolder } = useVault();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [selectedFolder, setSelectedFolder] = useState<string>(() => (activeFolder !== 'All' ? activeFolder : 'General ✨'));
+  const [isCustomFolder, setIsCustomFolder] = useState(false);
+  const [customFolderName, setCustomFolderName] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>(['cozy']);
   const [aiMood, setAiMood] = useState('Sweet Moments');
   const [isUploading, setIsUploading] = useState(false);
@@ -64,18 +67,25 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose }) => 
 
     setIsUploading(true);
     try {
+      const finalFolder = (isCustomFolder && customFolderName.trim())
+        ? customFolderName.trim()
+        : selectedFolder;
+
       await uploadMemory({
         file: selectedFile,
         caption: caption.trim() || 'A precious memory 🌸',
         tags: selectedTags,
         date,
         aiMood,
+        folder: finalFolder,
       });
       onClose();
       // Reset
       setSelectedFile(null);
       setPreviewUrl(null);
       setCaption('');
+      setIsCustomFolder(false);
+      setCustomFolderName('');
     } catch (err) {
       console.error(err);
       alert('Failed to upload memory. Please try again.');
@@ -206,6 +216,46 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose }) => 
                 className="w-full px-3 py-1.5 rounded-xl border border-lavender-300 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/90 text-purple-950 text-xs font-medium"
               />
             </div>
+          </div>
+
+          {/* Folder Selection */}
+          <div>
+            <label className="block text-[11px] font-bold text-purple-900 uppercase tracking-wider mb-1.5">
+              Folder 📁
+            </label>
+            <div className="flex gap-2">
+              <select
+                value={isCustomFolder ? '__custom__' : selectedFolder}
+                onChange={(e) => {
+                  if (e.target.value === '__custom__') {
+                    setIsCustomFolder(true);
+                  } else {
+                    setIsCustomFolder(false);
+                    setSelectedFolder(e.target.value);
+                  }
+                }}
+                className="w-full px-3 py-2 rounded-xl border border-lavender-300 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white text-purple-950 text-xs font-semibold"
+              >
+                {folders.map((f) => (
+                  <option key={f} value={f}>
+                    📁 {f}
+                  </option>
+                ))}
+                <option value="__custom__">+ Create New Folder...</option>
+              </select>
+            </div>
+            {isCustomFolder && (
+              <div className="mt-2">
+                <input
+                  type="text"
+                  placeholder="New folder name & emoji (e.g. Vacation 🌊)"
+                  value={customFolderName}
+                  onChange={(e) => setCustomFolderName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-lavender-300 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white text-purple-950 text-xs font-medium"
+                  required
+                />
+              </div>
+            )}
           </div>
 
           {/* Tags */}

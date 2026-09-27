@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, MessageCircle, Film, Heart, LayoutGrid, Columns, Trash2 } from 'lucide-react';
+import { Sparkles, MessageCircle, Film, Heart, LayoutGrid, Columns, Trash2, Folder, FolderPlus, X } from 'lucide-react';
 import { Memory } from '../types';
-import { useVault } from '../context/VaultContext';
+import { useVault, DEFAULT_FOLDERS } from '../context/VaultContext';
 
 interface GalleryGridProps {
   onSelectMemory: (memory: Memory) => void;
@@ -13,15 +13,32 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
   onSelectMemory,
   onOpenUpload,
 }) => {
-  const { memories, currentUser, partnerUser, toggleHeart, deleteMemory } = useVault();
+  const {
+    memories,
+    currentUser,
+    partnerUser,
+    toggleHeart,
+    deleteMemory,
+    folders,
+    activeFolder,
+    setActiveFolder,
+    addFolder,
+    deleteFolder,
+  } = useVault();
   const [filter, setFilter] = useState<'all' | 'photo' | 'video' | 'mine' | 'theirs' | 'starred'>('all');
   const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
 
   // Gallery view mode: 'grid' (aesthetic 2-4 columns) vs 'feed' (spacious polaroid cards)
   const [layoutMode, setLayoutMode] = useState<'grid' | 'feed'>('grid');
 
   // Filter memories
   const filteredMemories = memories.filter((mem) => {
+    if (activeFolder !== 'All') {
+      const memFolder = mem.folder || 'General ✨';
+      if (memFolder !== activeFolder) return false;
+    }
     if (activeTag && !mem.tags.includes(activeTag)) return false;
     if (filter === 'photo' && mem.type !== 'image') return false;
     if (filter === 'video' && mem.type !== 'video') return false;
@@ -36,6 +53,137 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
 
   return (
     <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
+      {/* 📁 Folders Segregation Bar */}
+      <div className="mb-4 p-3 rounded-2xl bg-white/80 backdrop-blur-md border border-lavender-200 shadow-2xs">
+        <div className="flex items-center justify-between gap-2 mb-2 px-0.5">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-purple-950 uppercase tracking-wider">
+            <Folder className="w-4 h-4 text-purple-700" />
+            <span>Folders</span>
+          </div>
+          <button
+            onClick={() => setIsCreatingFolder(true)}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-800 text-xs font-bold transition-all shadow-2xs"
+          >
+            <FolderPlus className="w-3.5 h-3.5" />
+            <span>+ New Folder</span>
+          </button>
+        </div>
+
+        {/* Scrollable Folder Badges */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+          <button
+            onClick={() => setActiveFolder('All')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+              activeFolder === 'All'
+                ? 'bg-gradient-to-r from-purple-700 to-indigo-700 text-white shadow-cute'
+                : 'bg-white hover:bg-lavender-100 text-purple-900 border border-lavender-200'
+            }`}
+          >
+            <span>📁 All</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${activeFolder === 'All' ? 'bg-white/20 text-white' : 'bg-lavender-100 text-purple-800'}`}>
+              {memories.length}
+            </span>
+          </button>
+
+          {folders.map((folderName) => {
+            const count = memories.filter((m) => (m.folder || 'General ✨') === folderName).length;
+            const isSelected = activeFolder === folderName;
+            const isDefault = DEFAULT_FOLDERS.includes(folderName);
+
+            return (
+              <div key={folderName} className="relative group/folder flex-shrink-0">
+                <button
+                  onClick={() => setActiveFolder(folderName)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                    isSelected
+                      ? 'bg-gradient-to-r from-purple-700 to-indigo-700 text-white shadow-cute'
+                      : 'bg-white hover:bg-lavender-100 text-purple-900 border border-lavender-200'
+                  }`}
+                >
+                  <span>{folderName}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${isSelected ? 'bg-white/20 text-white' : 'bg-lavender-100 text-purple-800'}`}>
+                    {count}
+                  </span>
+                </button>
+
+                {!isDefault && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm(`Delete folder "${folderName}"? Memories in this folder will be moved to General ✨.`)) {
+                        deleteFolder(folderName);
+                      }
+                    }}
+                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-[10px] flex items-center justify-center opacity-80 sm:opacity-0 group-hover/folder:opacity-100 transition-opacity shadow-xs"
+                    title={`Delete folder ${folderName}`}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Create New Folder Modal */}
+      {isCreatingFolder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-lavender-950/60 backdrop-blur-md">
+          <div className="w-full max-w-sm glass-card rounded-3xl p-5 shadow-2xl relative border border-lavender-200">
+            <button
+              onClick={() => setIsCreatingFolder(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-lavender-100 text-purple-700"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <div className="flex items-center gap-2 mb-3 text-purple-950 font-bold font-cute text-base">
+              <FolderPlus className="w-5 h-5 text-purple-700" />
+              <span>Create New Folder</span>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (newFolderName.trim()) {
+                  addFolder(newFolderName.trim());
+                  setActiveFolder(newFolderName.trim());
+                  setNewFolderName('');
+                  setIsCreatingFolder(false);
+                }
+              }}
+              className="space-y-3"
+            >
+              <div>
+                <label className="block text-xs font-bold text-purple-900 mb-1">Folder Name & Emoji</label>
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="e.g. Anniversary 💖, Beach Trip 🏖️"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-lavender-300 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white text-purple-950 text-sm font-semibold"
+                  required
+                />
+              </div>
+              <div className="flex gap-2 justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsCreatingFolder(false)}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold text-purple-700 hover:bg-lavender-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold shadow-cute"
+                >
+                  Create Folder
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Filter and View Mode Switcher Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         {/* Category Filters */}
@@ -216,10 +364,15 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
                       />
                     )}
 
-                    {/* Top Uploader Avatar Pill */}
-                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-black/40 backdrop-blur-md text-[10px] font-bold text-white flex items-center gap-1 border border-white/20">
-                      <span>{memory.uploaderAvatar}</span>
-                      <span className="truncate max-w-[60px] sm:max-w-none">{memory.uploaderName.split(' ')[0]}</span>
+                    {/* Top Uploader Avatar Pill & Folder Badge */}
+                    <div className="absolute top-2 left-2 flex flex-col gap-1 items-start z-10 max-w-[calc(100%-55px)]">
+                      <div className="px-2 py-0.5 rounded-full bg-black/45 backdrop-blur-md text-[10px] font-bold text-white flex items-center gap-1 border border-white/20">
+                        <span>{memory.uploaderAvatar}</span>
+                        <span className="truncate max-w-[55px] sm:max-w-none">{memory.uploaderName.split(' ')[0]}</span>
+                      </div>
+                      <div className="px-1.5 py-0.5 rounded-md bg-purple-950/75 backdrop-blur-md text-[9px] font-bold text-lavender-200 border border-purple-400/20 truncate max-w-full">
+                        📁 {memory.folder || 'General ✨'}
+                      </div>
                     </div>
 
                     {/* Top Right Actions: Mood sticker + Delete */}
@@ -364,6 +517,17 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
                       <p className="text-sm font-semibold text-purple-950 font-cute leading-snug line-clamp-2">
                         {memory.caption}
                       </p>
+
+                      <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                        <span className="px-2 py-0.5 rounded-lg bg-lavender-100 text-purple-800 text-[10px] font-bold border border-lavender-200">
+                          📁 {memory.folder || 'General ✨'}
+                        </span>
+                        {memory.tags.slice(0, 3).map((t) => (
+                          <span key={t} className="px-1.5 py-0.5 rounded-md bg-purple-50 text-purple-600 text-[10px] font-medium">
+                            #{t}
+                          </span>
+                        ))}
+                      </div>
 
                       <div className="mt-2.5 pt-2.5 border-t border-lavender-100 flex items-center justify-between text-[11px] text-purple-500">
                         <div className="flex items-center gap-1.5 font-medium">

@@ -97,31 +97,82 @@ export async function supabaseSaveVault(vault: Vault): Promise<void> {
   const client = getSupabaseClient();
   if (!client) return;
 
-  const { error } = await client.from('vaults').upsert({
+  const usersWithFolders = (vault.users || []).map((u, idx) => {
+    if (idx === 0 && vault.folders) {
+      return { ...u, customFolders: vault.folders };
+    }
+    return u;
+  });
+
+  const payload = {
     id: vault.id,
     name: vault.name,
     access_code: vault.accessCode.trim().toUpperCase(),
     created_at: vault.createdAt,
-    users: vault.users,
+    users: usersWithFolders,
     is_locked: vault.isLocked,
-  });
+  };
 
-  if (error) {
-    console.error('Supabase error saving vault:', error);
-    throw error;
+  // 1. First try updating the existing vault record by ID
+  const { data: updatedById, error: updateError } = await client
+    .from('vaults')
+    .update({
+      name: payload.name,
+      access_code: payload.access_code,
+      users: payload.users,
+      is_locked: payload.is_locked,
+    })
+    .eq('id', vault.id)
+    .select();
+
+  if (!updateError && updatedById && updatedById.length > 0) {
+    return;
+  }
+
+  // 2. Try updating by access_code in case ID differs slightly
+  const { data: updatedByCode } = await client
+    .from('vaults')
+    .update({
+      name: payload.name,
+      users: payload.users,
+      is_locked: payload.is_locked,
+    })
+    .eq('access_code', payload.access_code)
+    .select();
+
+  if (updatedByCode && updatedByCode.length > 0) {
+    return;
+  }
+
+  // 3. Fallback: insert / upsert
+  const { error: upsertError } = await client
+    .from('vaults')
+    .upsert(payload, { onConflict: 'id' });
+
+  if (upsertError) {
+    console.error('Supabase error saving vault:', upsertError);
+    throw upsertError;
   }
 }
 
-export async function supabaseGetVault(): Promise<Vault | null> {
+export async function supabaseGetVault(targetIdOrCode?: string): Promise<Vault | null> {
   const client = getSupabaseClient();
   if (!client) return null;
 
-  const { data, error } = await client
-    .from('vaults')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  let query = client.from('vaults').select('*');
+
+  if (targetIdOrCode) {
+    const clean = targetIdOrCode.trim().toUpperCase();
+    if (clean.startsWith('LILAC-')) {
+      query = query.eq('access_code', clean);
+    } else {
+      query = query.eq('id', targetIdOrCode);
+    }
+  } else {
+    query = query.order('created_at', { ascending: false });
+  }
+
+  const { data, error } = await query.limit(1).maybeSingle();
 
   if (error) {
     console.error('Supabase error fetching vault:', error);
@@ -130,13 +181,17 @@ export async function supabaseGetVault(): Promise<Vault | null> {
 
   if (!data) return null;
 
+  const users = data.users || [];
+  const folders = (users[0] as any)?.customFolders || [];
+
   return {
     id: data.id,
     name: data.name,
     accessCode: data.access_code,
     createdAt: data.created_at,
-    users: data.users || [],
+    users,
     isLocked: data.is_locked,
+    folders,
   };
 }
 
@@ -160,13 +215,17 @@ export async function supabaseGetVaultByCode(accessCode: string): Promise<Vault 
 
   if (!data) return null;
 
+  const users = data.users || [];
+  const folders = (users[0] as any)?.customFolders || [];
+
   return {
     id: data.id,
     name: data.name,
     accessCode: data.access_code,
     createdAt: data.created_at,
-    users: data.users || [],
+    users,
     isLocked: data.is_locked,
+    folders,
   };
 }
 
@@ -177,6 +236,10 @@ export async function supabaseGetVaultByCode(accessCode: string): Promise<Vault 
 export async function supabaseSaveMemory(memory: Memory): Promise<void> {
   const client = getSupabaseClient();
   if (!client) return;
+
+  const currentFolder = memory.folder || 'General ✨';
+  const cleanTags = (memory.tags || []).filter((t) => !t.startsWith('folder:'));
+  cleanTags.push(`folder:${currentFolder}`);
 
   const { error } = await client.from('memories').upsert({
     id: memory.id,
@@ -189,7 +252,7 @@ export async function supabaseSaveMemory(memory: Memory): Promise<void> {
     caption: memory.caption,
     date: memory.date,
     hearts: memory.hearts,
-    tags: memory.tags,
+    tags: cleanTags,
     notes: memory.notes,
     ai_mood: memory.aiMood,
     created_at: new Date().toISOString(),
@@ -217,21 +280,29 @@ export async function supabaseGetAllMemories(vaultId?: string): Promise<Memory[]
     return [];
   }
 
-  return (data || []).map((row) => ({
-    id: row.id,
-    vaultId: row.vault_id,
-    uploaderId: row.uploader_id,
-    uploaderName: row.uploader_name,
-    uploaderAvatar: row.uploader_avatar,
-    type: row.type,
-    mediaUrl: row.media_url,
-    caption: row.caption || '',
-    date: row.date,
-    hearts: row.hearts || [],
-    tags: row.tags || [],
-    notes: row.notes || [],
-    aiMood: row.ai_mood,
-  }));
+  return (data || []).map((row) => {
+    const rawTags: string[] = row.tags || [];
+    const folderTag = rawTags.find((t) => t.startsWith('folder:'));
+    const folder = folderTag ? folderTag.replace('folder:', '') : (row.folder || 'General ✨');
+    const userTags = rawTags.filter((t) => !t.startsWith('folder:'));
+
+    return {
+      id: row.id,
+      vaultId: row.vault_id,
+      uploaderId: row.uploader_id,
+      uploaderName: row.uploader_name,
+      uploaderAvatar: row.uploader_avatar,
+      type: row.type,
+      mediaUrl: row.media_url,
+      caption: row.caption || '',
+      date: row.date,
+      hearts: row.hearts || [],
+      tags: userTags,
+      notes: row.notes || [],
+      aiMood: row.ai_mood,
+      folder,
+    };
+  });
 }
 
 export async function supabaseDeleteMemory(id: string): Promise<void> {
