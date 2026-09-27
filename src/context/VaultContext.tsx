@@ -20,6 +20,7 @@ import {
   syncLocalToCloud,
 } from '../services/storage';
 import { isSupabaseConfigured, supabaseSubscribeToChanges } from '../services/supabase';
+import { extractCodeFromUrlOrInput } from '../services/shareInvite';
 
 interface VaultContextType {
   vault: Vault | null;
@@ -63,29 +64,64 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     async function loadData() {
       try {
-        const storedVault = await getVault();
-        if (storedVault) {
+      // Check if URL contains an invite code (?join=CODE or ?code=CODE)
+      const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const rawUrlCode = urlParams ? (urlParams.get('join') || urlParams.get('code')) : null;
+      const inviteCodeFromUrl = rawUrlCode ? extractCodeFromUrlOrInput(rawUrlCode) : null;
+
+      const storedVault = await getVault();
+
+      if (inviteCodeFromUrl) {
+        // Opening an invite link directly
+        if (storedVault && storedVault.accessCode?.trim().toUpperCase() === inviteCodeFromUrl) {
           setVault(storedVault);
           const allMems = await getAllMemories();
           setMemories(allMems);
-
           const allMsgs = await getAllChatMessages();
           setChatMessages(allMsgs);
-
           const activeId = getActiveUserId();
-          const isDemo = localStorage.getItem('lilac_is_demo') === 'true';
-          setIsDemoMode(isDemo);
-
           const foundUser = storedVault.users.find((u) => u.id === activeId);
-          if (foundUser) {
-            setCurrentUser(foundUser);
-          } else if (isDemo && storedVault.users.length > 0) {
-            setCurrentUser(storedVault.users[0]);
-            dbSetActiveUserId(storedVault.users[0].id);
-          } else {
-            setCurrentUser(null);
+          setCurrentUser(foundUser || null);
+        } else {
+          // Invited to a new/different vault
+          const invitedVault = await getVaultByCode(inviteCodeFromUrl);
+          if (invitedVault) {
+            setVault(invitedVault);
+            const allMems = await getAllMemories();
+            setMemories(allMems);
+            const allMsgs = await getAllChatMessages();
+            setChatMessages(allMsgs);
+            setIsDemoMode(false);
+            localStorage.removeItem('lilac_is_demo');
+            const activeId = getActiveUserId();
+            const foundUser = invitedVault.users.find((u) => u.id === activeId);
+            setCurrentUser(foundUser || null);
+          } else if (storedVault) {
+            setVault(storedVault);
           }
         }
+      } else if (storedVault) {
+        setVault(storedVault);
+        const allMems = await getAllMemories();
+        setMemories(allMems);
+
+        const allMsgs = await getAllChatMessages();
+        setChatMessages(allMsgs);
+
+        const activeId = getActiveUserId();
+        const isDemo = localStorage.getItem('lilac_is_demo') === 'true';
+        setIsDemoMode(isDemo);
+
+        const foundUser = storedVault.users.find((u) => u.id === activeId);
+        if (foundUser) {
+          setCurrentUser(foundUser);
+        } else if (isDemo && storedVault.users.length > 0) {
+          setCurrentUser(storedVault.users[0]);
+          dbSetActiveUserId(storedVault.users[0].id);
+        } else {
+          setCurrentUser(null);
+        }
+      }
       } catch (err) {
         console.error('Error loading vault data:', err);
       } finally {

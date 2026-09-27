@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Lock, Key, Users, ArrowRight, PlayCircle, LogIn, CheckCircle, Cloud } from 'lucide-react';
+import { Sparkles, Lock, Key, Users, ArrowRight, PlayCircle, LogIn, CheckCircle, Cloud, Share2, Clipboard, Link as LinkIcon, Check } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { isSupabaseConfigured } from '../services/supabase';
 import { LavenderLogo } from './LavenderLogo';
+import { extractCodeFromUrlOrInput, shareInviteLink, copyInviteLink } from '../services/shareInvite';
 
 const AVATAR_OPTIONS = ['🪻', '☕', '🌿', '✨', '📸', '🌙', '🎨', '🧁', '🌊', '🍓', '🧸', '🌸'];
 
@@ -37,9 +38,63 @@ export const OnboardingModal: React.FC<{
   const [errorMessage, setErrorMessage] = useState('');
   const [successNotice, setSuccessNotice] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // If user searched code on new device and found locked capsule, display profiles
   const [codeMatchedUsers, setCodeMatchedUsers] = useState<Array<{ id: string; name: string; avatar: string; role: string }> | null>(null);
+
+  // Check URL search parameters for ?join=CODE or ?code=CODE on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const rawCode = params.get('join') || params.get('code');
+    if (rawCode) {
+      const clean = extractCodeFromUrlOrInput(rawCode);
+      if (clean) {
+        setTab('join');
+        setAccessCodeInput(clean);
+        handleAutoVerifyInvite(clean);
+      }
+    }
+  }, []);
+
+  const handleAutoVerifyInvite = async (code: string) => {
+    setIsSubmitting(true);
+    setErrorMessage('');
+    try {
+      const codeResult = await loginWithCode(code);
+      if (codeResult.success && codeResult.users) {
+        if (codeResult.users.length >= 2) {
+          setCodeMatchedUsers(codeResult.users);
+          setSuccessNotice('✨ Invite link recognized! Tap your profile to log in:');
+        } else {
+          const host = codeResult.users[0]?.name || 'Partner';
+          setSuccessNotice(`✨ Connected via invite to ${host}'s capsule! Enter your nickname below to pair:`);
+        }
+      } else {
+        setErrorMessage(codeResult.error || `Invite code "${code}" not found. Verify code or connect Cloud Sync!`);
+      }
+    } catch {
+      // quiet fallback
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handlePasteLinkOrCode = async () => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.readText) {
+        const text = await navigator.clipboard.readText();
+        const clean = extractCodeFromUrlOrInput(text);
+        if (clean) {
+          setAccessCodeInput(clean);
+          handleAutoVerifyInvite(clean);
+        }
+      }
+    } catch {
+      // clipboard permission fallback
+    }
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,9 +115,9 @@ export const OnboardingModal: React.FC<{
 
   const handleVerifyCodeOrJoin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const code = accessCodeInput.trim().toUpperCase();
+    const code = extractCodeFromUrlOrInput(accessCodeInput);
     if (!code) {
-      setErrorMessage('Please enter the 6-character access code (e.g. LILAC-777)!');
+      setErrorMessage('Please enter the access code or invite link (e.g. LILAC-777)!');
       return;
     }
 
@@ -91,6 +146,11 @@ export const OnboardingModal: React.FC<{
         const joinResult = await joinVault(code, partnerName.trim(), partnerAvatar);
         if (!joinResult.success) {
           setErrorMessage(joinResult.error || 'Could not join capsule.');
+        } else {
+          // Clean URL params after successful join
+          if (typeof window !== 'undefined' && window.location.search) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
         }
       } else {
         // Prompt them to enter their nickname to finish pairing
@@ -287,16 +347,54 @@ export const OnboardingModal: React.FC<{
             </div>
 
             {vault.users.length < 2 && (
-              <button
-                onClick={() => {
-                  setTab('join');
-                  setAccessCodeInput(vault.accessCode);
-                }}
-                className="w-full py-3 rounded-2xl bg-gradient-to-r from-purple-700 via-lavender-600 to-indigo-700 text-white font-bold text-xs shadow-cute hover:shadow-glow flex items-center justify-center gap-2 transition-all mt-2"
-              >
-                <Users className="w-4 h-4" />
-                <span>+ Join as Friend 2 (Partner)</span>
-              </button>
+              <div className="space-y-2 mt-2">
+                <button
+                  onClick={() => {
+                    setTab('join');
+                    setAccessCodeInput(vault.accessCode);
+                  }}
+                  className="w-full py-2.5 rounded-2xl bg-gradient-to-r from-purple-700 via-lavender-600 to-indigo-700 text-white font-bold text-xs shadow-cute hover:shadow-glow flex items-center justify-center gap-2 transition-all"
+                >
+                  <Users className="w-4 h-4" />
+                  <span>+ Join as Friend 2 (Partner)</span>
+                </button>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const res = await shareInviteLink({
+                        code: vault.accessCode,
+                        vaultName: vault.name,
+                        hostName: vault.users[0]?.name,
+                      });
+                      if (res.status === 'copied' || res.status === 'shared') {
+                        setSuccessNotice(res.message);
+                      }
+                    }}
+                    className="flex-1 py-2.5 rounded-2xl bg-lavender-100 hover:bg-lavender-200 text-purple-900 border border-purple-300 font-bold text-xs shadow-2xs flex items-center justify-center gap-1.5 transition-all"
+                  >
+                    <Share2 className="w-3.5 h-3.5 text-purple-700" />
+                    <span>Share Invite Link 📲</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const ok = await copyInviteLink(vault.accessCode);
+                      if (ok) {
+                        setCopiedLink(true);
+                        setSuccessNotice('Invite link copied to clipboard! 📋 Send it to your friend.');
+                        setTimeout(() => setCopiedLink(false), 3000);
+                      }
+                    }}
+                    className="py-2.5 px-3 rounded-2xl bg-white hover:bg-lavender-50 text-purple-900 border border-lavender-300 font-bold text-xs shadow-2xs flex items-center justify-center gap-1 transition-all"
+                    title="Copy direct invite link"
+                  >
+                    {copiedLink ? <Check className="w-4 h-4 text-emerald-600" /> : <LinkIcon className="w-4 h-4 text-purple-600" />}
+                  </button>
+                </div>
+              </div>
             )}
 
             <div className="pt-2 text-center">
@@ -472,19 +570,34 @@ export const OnboardingModal: React.FC<{
                 )}
 
                 <div>
-                  <label className="block text-xs font-bold text-purple-900 uppercase tracking-wider mb-1">
-                    Friend's Access Code
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-purple-900 uppercase tracking-wider">
+                      Friend's Access Code or Invite Link
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handlePasteLinkOrCode}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 hover:text-purple-950 px-2 py-0.5 rounded-lg bg-lavender-100 hover:bg-lavender-200 border border-lavender-200 transition-colors"
+                      title="Paste invite link or code from clipboard"
+                    >
+                      <Clipboard className="w-3 h-3 text-purple-600" />
+                      <span>Paste Link/Code</span>
+                    </button>
+                  </div>
                   <input
                     type="text"
                     value={accessCodeInput}
-                    onChange={(e) => setAccessCodeInput(e.target.value.toUpperCase())}
-                    placeholder="e.g. LILAC-777"
+                    onChange={(e) => {
+                      const extracted = extractCodeFromUrlOrInput(e.target.value);
+                      setAccessCodeInput(extracted);
+                      setErrorMessage('');
+                    }}
+                    placeholder="e.g. LILAC-777 or paste full invite link"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-lavender-300 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/90 text-purple-950 font-mono tracking-widest text-center text-base"
                     required
                   />
                   <span className="text-[11px] text-purple-600 mt-1 block">
-                    Enter the code provided by your friend to join or log in.
+                    ✨ Opening your friend's link fills and pairs this code automatically!
                   </span>
                 </div>
 

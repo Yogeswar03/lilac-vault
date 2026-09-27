@@ -1,9 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Film, Plus, HelpCircle, Lock, MessageCircle, LogOut, Camera, Cloud } from 'lucide-react';
+import { Sparkles, Film, Plus, HelpCircle, Lock, MessageCircle, LogOut, Camera, Cloud, Share2 } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { isSupabaseConfigured } from '../services/supabase';
 import { LavenderLogo } from './LavenderLogo';
+import { shareInviteLink } from '../services/shareInvite';
 
 interface NavbarProps {
   activeView: 'gallery' | 'chat';
@@ -59,6 +60,27 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <Lock className="w-3 h-3 text-purple-600" />
                   {vault?.isLocked ? 'Strictly 2 Paired' : '1/2 Waiting'}
                 </span>
+                {!vault?.isLocked && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    type="button"
+                    onClick={() => {
+                      if (vault?.accessCode) {
+                        shareInviteLink({
+                          code: vault.accessCode,
+                          vaultName: vault.name,
+                          hostName: currentUser?.name,
+                        });
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-bold shadow-xs transition-colors flex-shrink-0"
+                    title="Tap to share invite link with your partner"
+                  >
+                    <Share2 className="w-3 h-3" />
+                    <span>Invite 📲</span>
+                  </motion.button>
+                )}
               </div>
               <p className="text-[11px] sm:text-xs text-purple-700/80 font-medium truncate">
                 <span>Day {daysTogether}</span>
