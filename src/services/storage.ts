@@ -183,6 +183,36 @@ export async function getVault(targetIdOrCode?: string): Promise<Vault | null> {
   });
 }
 
+// Fast Local Vault Retrieval (IndexedDB only, <10ms for instant app launch)
+export async function getLocalVault(targetIdOrCode?: string): Promise<Vault | null> {
+  const activeLookup = targetIdOrCode || (typeof window !== 'undefined' ? (localStorage.getItem('lilac_vault_code') || localStorage.getItem('lilac_vault_id') || undefined) : undefined);
+  try {
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_VAULT, 'readonly');
+      const store = tx.objectStore(STORE_VAULT);
+      const req = store.getAll();
+      req.onsuccess = () => {
+        const vaults: Vault[] = req.result || [];
+        if (vaults.length > 0) {
+          if (activeLookup) {
+            const clean = activeLookup.trim().toUpperCase();
+            const match = vaults.find((v) => v.id === activeLookup || v.accessCode?.trim().toUpperCase() === clean);
+            resolve(match || vaults[vaults.length - 1]);
+          } else {
+            resolve(vaults[vaults.length - 1]);
+          }
+        } else {
+          resolve(null);
+        }
+      };
+      req.onerror = () => resolve(null);
+    });
+  } catch {
+    return null;
+  }
+}
+
 // Get Vault explicitly by Access Code (Supabase Cloud first, then Local API, then IndexedDB)
 export async function getVaultByCode(accessCode: string): Promise<Vault | null> {
   const cleanCode = accessCode.trim().toUpperCase();
@@ -376,6 +406,26 @@ export async function getAllMemories(): Promise<Memory[]> {
   });
 }
 
+// Fast Local Memories Retrieval (IndexedDB only, <10ms for instant app launch)
+export async function getLocalMemories(): Promise<Memory[]> {
+  try {
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_MEMORIES, 'readonly');
+      const store = tx.objectStore(STORE_MEMORIES);
+      const req = store.getAll();
+      req.onsuccess = () => {
+        const items = (req.result as Memory[]) || [];
+        items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        resolve(items);
+      };
+      req.onerror = () => resolve([]);
+    });
+  } catch {
+    return [];
+  }
+}
+
 // Delete Memory
 export async function deleteMemory(id: string): Promise<void> {
   if (isSupabaseConfigured()) {
@@ -470,6 +520,26 @@ export async function getAllChatMessages(): Promise<ChatMessage[]> {
     };
     req.onerror = () => reject(req.error);
   });
+}
+
+// Fast Local Chat Messages Retrieval (IndexedDB only, <10ms for instant app launch)
+export async function getLocalChatMessages(): Promise<ChatMessage[]> {
+  try {
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_MESSAGES, 'readonly');
+      const store = tx.objectStore(STORE_MESSAGES);
+      const req = store.getAll();
+      req.onsuccess = () => {
+        const items = (req.result as ChatMessage[]) || [];
+        items.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        resolve(items);
+      };
+      req.onerror = () => resolve([]);
+    });
+  } catch {
+    return [];
+  }
 }
 
 // Delete Chat Message

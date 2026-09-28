@@ -19,10 +19,17 @@ import { LavenderLogo } from './components/LavenderLogo';
 import { Memory } from './types';
 
 const MainAppContent: React.FC = () => {
-  const { vault, currentUser, isLoading, startDemoMode, chatMessages } = useVault();
+  const { vault, currentUser, isLoading, startDemoMode, chatMessages, unreadChatCount, markChatAsRead } = useVault();
 
   // Active Main View: 'gallery' or 'chat' (full page)
   const [activeView, setActiveView] = useState<'gallery' | 'chat'>('gallery');
+
+  // Mark chat as read whenever chat view is active or new messages arrive while in chat
+  React.useEffect(() => {
+    if (activeView === 'chat') {
+      markChatAsRead();
+    }
+  }, [activeView, chatMessages.length, markChatAsRead]);
 
   // Modals state
   const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -154,12 +161,12 @@ const MainAppContent: React.FC = () => {
           onOpenUpload={() => setIsUploadOpen(true)}
           onOpenReel={() => setIsReelOpen(true)}
           onOpenCamera={() => setIsCameraOpen(true)}
-          chatMessageCount={chatMessages.length}
+          chatMessageCount={unreadChatCount}
         />
       )}
 
-      {/* Floating Perspective / Demo Switcher Bar */}
-      <DemoSwitcherBar onOpenHowItWorks={() => setIsHowItWorksOpen(true)} />
+      {/* Floating Perspective / Demo Switcher Bar (Only in demo mode & gallery view) */}
+      {activeView === 'gallery' && <DemoSwitcherBar onOpenHowItWorks={() => setIsHowItWorksOpen(true)} />}
     </div>
   );
 };

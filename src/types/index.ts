@@ -5,6 +5,7 @@ export interface User {
   color: string;
   role: 'host' | 'member';
   joinedAt: string;
+  lastReadAt?: string; // Timestamp when user last read the chat
 }
 
 export interface Vault {

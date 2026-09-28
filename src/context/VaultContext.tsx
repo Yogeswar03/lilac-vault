@@ -18,9 +18,13 @@ import {
   seedDemoData,
   clearAllVaultData,
   syncLocalToCloud,
+  getLocalVault,
+  getLocalMemories,
+  getLocalChatMessages,
 } from '../services/storage';
 import { isSupabaseConfigured, supabaseSubscribeToChanges } from '../services/supabase';
 import { extractCodeFromUrlOrInput } from '../services/shareInvite';
+import { playMessageChime } from '../services/sound';
 
 export const DEFAULT_FOLDERS = [
   'General ✨',
@@ -58,6 +62,8 @@ interface VaultContextType {
   loginUser: (userId: string) => void;
   loginWithCode: (accessCode: string) => Promise<{ success: boolean; error?: string; users?: User[] }>;
   logoutUser: () => void;
+  unreadChatCount: number;
+  markChatAsRead: () => Promise<void>;
   triggerSparkleExplosion: () => void;
   resetAllData: () => Promise<void>;
   syncCloud: () => Promise<{ success: boolean; error?: string }>;
@@ -73,91 +79,106 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isLoading, setIsLoading] = useState(true);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [activeFolder, setActiveFolder] = useState<string>('All');
+  const [lastReadTimestamp, setLastReadTimestamp] = useState<string>(() => {
+    return typeof window !== 'undefined'
+      ? (localStorage.getItem('lilac_last_read_chat') || new Date().toISOString())
+      : new Date().toISOString();
+  });
 
-  // Initialize from storage on mount
+  const syncCurrentUserFromVault = (v: Vault) => {
+    const activeId = getActiveUserId();
+    if (activeId && v.users && v.users.length > 0) {
+      const foundUser = v.users.find((u) => u.id === activeId);
+      if (foundUser) {
+        setCurrentUser((prev) => {
+          if (!prev || prev.name !== foundUser.name || prev.avatar !== foundUser.avatar || prev.role !== foundUser.role) {
+            return foundUser;
+          }
+          return prev;
+        });
+      }
+    }
+  };
+
+  // Initialize from storage on mount with Cache-First Instant Hydration (<20ms)
   useEffect(() => {
     async function loadData() {
-      try {
       // Check if URL contains an invite code (?join=CODE or ?code=CODE)
       const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
       const rawUrlCode = urlParams ? (urlParams.get('join') || urlParams.get('code')) : null;
       const inviteCodeFromUrl = rawUrlCode ? extractCodeFromUrlOrInput(rawUrlCode) : null;
 
-      const storedVault = await getVault();
+      // 1. FAST PATH: Instantly hydrate from local IndexedDB cache (<15ms)
+      try {
+        const [localVault, localMems, localMsgs] = await Promise.all([
+          getLocalVault(inviteCodeFromUrl || undefined),
+          getLocalMemories(),
+          getLocalChatMessages(),
+        ]);
 
-      if (inviteCodeFromUrl) {
-        // Opening an invite link directly
-        if (storedVault && storedVault.accessCode?.trim().toUpperCase() === inviteCodeFromUrl) {
-          setVault(storedVault);
-          const allMems = await getAllMemories();
-          setMemories(allMems);
-          const allMsgs = await getAllChatMessages();
-          setChatMessages(allMsgs);
+        if (localVault) {
+          setVault(localVault);
+          setMemories(localMems);
+          setChatMessages(localMsgs);
           const activeId = getActiveUserId();
-          const foundUser = storedVault.users.find((u) => u.id === activeId);
-          setCurrentUser(foundUser || null);
-        } else {
-          // Invited to a new/different vault
+          const foundUser = localVault.users.find((u) => u.id === activeId);
+          if (foundUser) {
+            setCurrentUser(foundUser);
+          } else if (localVault.users.length > 0) {
+            setCurrentUser(localVault.users[0]);
+            dbSetActiveUserId(localVault.users[0].id);
+          }
+          const isDemo = localStorage.getItem('lilac_is_demo') === 'true' && localVault.id === 'vault_demo_lavender';
+          setIsDemoMode(isDemo);
+          // UI renders immediately without waiting for server network latency!
+          setIsLoading(false);
+        }
+      } catch (err) {
+        console.warn('Local cache read error:', err);
+      }
+
+      // 2. REMOTE SYNC: Fetch latest cloud data in parallel in the background
+      try {
+        if (inviteCodeFromUrl) {
           const invitedVault = await getVaultByCode(inviteCodeFromUrl);
           if (invitedVault) {
             setVault(invitedVault);
-            const allMems = await getAllMemories();
+            const [allMems, allMsgs] = await Promise.all([getAllMemories(), getAllChatMessages()]);
             setMemories(allMems);
-            const allMsgs = await getAllChatMessages();
             setChatMessages(allMsgs);
             setIsDemoMode(false);
             localStorage.removeItem('lilac_is_demo');
             const activeId = getActiveUserId();
             const foundUser = invitedVault.users.find((u) => u.id === activeId);
             setCurrentUser(foundUser || null);
-          } else if (storedVault) {
-            setVault(storedVault);
+          }
+        } else {
+          const [remoteVault, remoteMems, remoteMsgs] = await Promise.all([
+            getVault(),
+            getAllMemories(),
+            getAllChatMessages(),
+          ]);
+
+          if (remoteVault) {
+            setVault(remoteVault);
+            syncCurrentUserFromVault(remoteVault);
+            const isDemo = localStorage.getItem('lilac_is_demo') === 'true' && remoteVault.id === 'vault_demo_lavender';
+            setIsDemoMode(isDemo);
+          }
+          if (remoteMems && remoteMems.length > 0) {
+            setMemories(remoteMems);
+          }
+          if (remoteMsgs && remoteMsgs.length > 0) {
+            setChatMessages(remoteMsgs);
           }
         }
-      } else if (storedVault) {
-        setVault(storedVault);
-        const allMems = await getAllMemories();
-        setMemories(allMems);
-
-        const allMsgs = await getAllChatMessages();
-        setChatMessages(allMsgs);
-
-        const activeId = getActiveUserId();
-        const isDemo = localStorage.getItem('lilac_is_demo') === 'true';
-        setIsDemoMode(isDemo);
-
-        const foundUser = storedVault.users.find((u) => u.id === activeId);
-        if (foundUser) {
-          setCurrentUser(foundUser);
-        } else if (isDemo && storedVault.users.length > 0) {
-          setCurrentUser(storedVault.users[0]);
-          dbSetActiveUserId(storedVault.users[0].id);
-        } else {
-          setCurrentUser(null);
-        }
-      }
       } catch (err) {
-        console.error('Error loading vault data:', err);
+        console.error('Error fetching latest vault data from cloud:', err);
       } finally {
         setIsLoading(false);
       }
     }
     loadData();
-
-    const syncCurrentUserFromVault = (v: Vault) => {
-      const activeId = getActiveUserId();
-      if (activeId && v.users && v.users.length > 0) {
-        const foundUser = v.users.find((u) => u.id === activeId);
-        if (foundUser) {
-          setCurrentUser((prev) => {
-            if (!prev || prev.name !== foundUser.name || prev.avatar !== foundUser.avatar || prev.role !== foundUser.role) {
-              return foundUser;
-            }
-            return prev;
-          });
-        }
-      }
-    };
 
     // Background sync polling fallback across mobile & desktop
     const interval = setInterval(async () => {
@@ -182,6 +203,11 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setChatMessages((prev) => {
             if (remoteMsgs.length > prev.length) {
               const newArrivals = remoteMsgs.slice(prev.length);
+              const activeId = getActiveUserId();
+              const fromPartner = newArrivals.filter((m) => m.senderId !== activeId);
+              if (fromPartner.length > 0) {
+                playMessageChime();
+              }
               if (newArrivals.some((m) => m.type === 'sparkle_burst')) {
                 triggerSparkleExplosion();
               }
@@ -215,6 +241,11 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setChatMessages((prev) => {
             if (c.length > prev.length) {
               const newArrivals = c.slice(prev.length);
+              const activeId = getActiveUserId();
+              const fromPartner = newArrivals.filter((m) => m.senderId !== activeId);
+              if (fromPartner.length > 0) {
+                playMessageChime();
+              }
               if (newArrivals.some((m) => m.type === 'sparkle_burst')) {
                 triggerSparkleExplosion();
               }
@@ -302,6 +333,35 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
     if (vault && (!vault.folders || !vault.folders.includes(cleanFolder))) {
       await addFolder(cleanFolder);
+    }
+  };
+
+  // Calculate unread chat messages from partner since lastReadTimestamp
+  const unreadChatCount = React.useMemo(() => {
+    if (!currentUser) return 0;
+    const lastRead = new Date(lastReadTimestamp).getTime();
+    return chatMessages.filter(
+      (m) => m.senderId !== currentUser.id && new Date(m.createdAt).getTime() > lastRead
+    ).length;
+  }, [chatMessages, currentUser, lastReadTimestamp]);
+
+  // Mark all chat messages as read and sync with partner
+  const markChatAsRead = async () => {
+    const now = new Date().toISOString();
+    setLastReadTimestamp(now);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('lilac_last_read_chat', now);
+    }
+    if (vault && currentUser) {
+      const updatedUsers = vault.users.map((u) =>
+        u.id === currentUser.id ? { ...u, lastReadAt: now } : u
+      );
+      const updatedVault: Vault = {
+        ...vault,
+        users: updatedUsers,
+      };
+      setVault(updatedVault);
+      saveVault(updatedVault).catch(() => {});
     }
   };
 
@@ -649,6 +709,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     setVault(remoteVault);
+    setIsDemoMode(false);
+    localStorage.removeItem('lilac_is_demo');
     const allMems = await getAllMemories();
     setMemories(allMems);
     const allMsgs = await getAllChatMessages();
@@ -688,6 +750,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addFolder,
         deleteFolder,
         moveMemoryToFolder,
+        unreadChatCount,
+        markChatAsRead,
         isLoading,
         isDemoMode,
         createVault,

@@ -28,15 +28,16 @@ export const FullPageChat: React.FC<FullPageChatProps> = ({
   onOpenProfile,
   onOpenCamera,
 }) => {
-  const { vault, chatMessages, currentUser, partnerUser, sendChatMessage, deleteChatMessage, triggerSparkleExplosion } = useVault();
+  const { vault, chatMessages, currentUser, partnerUser, sendChatMessage, deleteChatMessage, triggerSparkleExplosion, markChatAsRead } = useVault();
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-scroll on mount and when new messages arrive
+  // Auto-scroll and mark as read on mount and when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages]);
+    markChatAsRead();
+  }, [chatMessages.length, markChatAsRead]);
 
   const handleSend = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -259,12 +260,25 @@ export const FullPageChat: React.FC<FullPageChatProps> = ({
                     )}
                   </div>
 
-                  <span className="text-[10px] text-purple-400 mt-1 px-1 font-sans">
-                    {new Date(msg.createdAt).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
+                  <div className={`flex items-center gap-1 text-[10px] text-purple-400 mt-0.5 px-1 font-sans ${isMe ? 'justify-end' : 'justify-start'}`}>
+                    <span>
+                      {new Date(msg.createdAt).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                    {isMe && (
+                      partnerUser?.lastReadAt && new Date(msg.createdAt).getTime() <= new Date(partnerUser.lastReadAt).getTime() ? (
+                        <span className="text-purple-700 font-black tracking-tighter ml-0.5 inline-flex items-center" title="Read by partner">
+                          ✓✓
+                        </span>
+                      ) : (
+                        <span className="text-purple-300 font-bold ml-0.5 inline-flex items-center" title="Sent to capsule">
+                          ✓
+                        </span>
+                      )
+                    )}
+                  </div>
                 </motion.div>
               );
             })}
