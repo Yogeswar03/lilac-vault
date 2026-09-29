@@ -161,51 +161,9 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
           </div>
 
           {/* Folders Grid */}
+          {/* Folders Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-5">
-            {/* 1. All Photos & Videos Collection Album (if memories exist) */}
-            {memories.length > 0 && (
-              <motion.div
-                whileHover={{ y: -4, scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  setOpenedFolder('__all__');
-                  setActiveFolder('All');
-                }}
-                className="group relative cursor-pointer rounded-3xl overflow-hidden glass-card border border-purple-200 shadow-cute hover:shadow-glow transition-all flex flex-col"
-              >
-                <div className="relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-tr from-purple-800 via-indigo-700 to-lavender-600">
-                  {memories[0]?.mediaUrl ? (
-                    <img
-                      src={memories[0].mediaUrl}
-                      alt="All Memories Cover"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-80 group-hover:opacity-90"
-                    />
-                  ) : null}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex items-end p-3">
-                    <span className="px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-bold text-white border border-white/20">
-                      {memories.length} item{memories.length > 1 ? 's' : ''}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-3 sm:p-4 bg-white/95 flex-1 flex flex-col justify-between">
-                  <div>
-                    <h4 className="text-xs sm:text-sm font-bold font-cute text-purple-950 flex items-center gap-1.5">
-                      <span>📸</span>
-                      <span>All Memories</span>
-                    </h4>
-                    <p className="text-[11px] text-purple-600 mt-0.5 font-medium">
-                      Complete photo & video vault
-                    </p>
-                  </div>
-                  <span className="text-[10px] font-bold text-purple-700 mt-2 flex items-center gap-1">
-                    <span>View all →</span>
-                  </span>
-                </div>
-              </motion.div>
-            )}
-
-            {/* 2. User-Created Folders */}
+            {/* 1. User-Created Folders First */}
             {folders.map((folderName) => {
               const folderMems = memories.filter((m) => m.folder === folderName);
               const coverMemory = folderMems[0];
@@ -228,6 +186,8 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
                       <img
                         src={coverMemory.mediaUrl}
                         alt={folderName}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : (
@@ -281,7 +241,7 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
               );
             })}
 
-            {/* 3. "+ Create New Folder" Action Card */}
+            {/* 2. "+ Create New Folder" Action Card */}
             <motion.div
               whileHover={{ y: -4, scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -295,9 +255,54 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({
                 + Create Folder
               </h4>
               <p className="text-[11px] text-purple-600 mt-1 max-w-[140px]">
-                Organize trips, selfies, or special dates
+                Organize trips, selfies, or dates
               </p>
             </motion.div>
+
+            {/* 3. All Photos & Videos Collection Album (Optional album for all memories) */}
+            {memories.length > 0 && (
+              <motion.div
+                whileHover={{ y: -4, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  setOpenedFolder('__all__');
+                  setActiveFolder('All');
+                }}
+                className="group relative cursor-pointer rounded-3xl overflow-hidden glass-card border border-purple-200 shadow-cute hover:shadow-glow transition-all flex flex-col"
+              >
+                <div className="relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-tr from-purple-800 via-indigo-700 to-lavender-600">
+                  {memories[0]?.mediaUrl ? (
+                    <img
+                      src={memories[0].mediaUrl}
+                      alt="All Memories Cover"
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-80 group-hover:opacity-90"
+                    />
+                  ) : null}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex items-end p-3">
+                    <span className="px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-bold text-white border border-white/20">
+                      {memories.length} item{memories.length > 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-3 sm:p-4 bg-white/95 flex-1 flex flex-col justify-between">
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-bold font-cute text-purple-950 flex items-center gap-1.5">
+                      <span>📸</span>
+                      <span>All Memories</span>
+                    </h4>
+                    <p className="text-[11px] text-purple-600 mt-0.5 font-medium">
+                      Complete photo & video vault
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-bold text-purple-700 mt-2 flex items-center gap-1">
+                    <span>View all →</span>
+                  </span>
+                </div>
+              </motion.div>
+            )}
           </div>
 
           {/* Empty state when user has created 0 folders and has 0 memories */}

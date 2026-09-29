@@ -333,25 +333,28 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const partnerUser = vault?.users.find((u) => u.id !== currentUser?.id) || null;
 
-  // Dynamically compute user-created folders only (no hardcoded presets!)
+  // Dynamically compute user-created folders only (strictly from vault.folders)
   const folders = React.useMemo(() => {
     const list = new Set<string>();
+    const blockedPresets = new Set([
+      'General ✨',
+      'General',
+      'Trips & Travel 🌴',
+      'Cafe & Dates ☕',
+      'Cute Selfies 📸',
+    ]);
+
     if (vault?.folders && Array.isArray(vault.folders)) {
       vault.folders.forEach((f) => {
-        if (f && f.trim()) list.add(f.trim());
+        const clean = f?.trim();
+        if (clean && !blockedPresets.has(clean)) {
+          list.add(clean);
+        }
       });
     }
-    // Also include any user-created folder attached to memories
-    memories.forEach((m) => {
-      if (m.folder && m.folder.trim()) {
-        // filter out old legacy presets if not in vault.folders
-        if (!['General ✨', 'Trips & Travel 🌴', 'Cafe & Dates ☕', 'Cute Selfies 📸'].includes(m.folder.trim()) || (vault?.folders && vault.folders.includes(m.folder.trim()))) {
-          list.add(m.folder.trim());
-        }
-      }
-    });
+
     return Array.from(list);
-  }, [vault?.folders, memories]);
+  }, [vault?.folders]);
 
   // Create a new folder
   const addFolder = async (folderName: string) => {

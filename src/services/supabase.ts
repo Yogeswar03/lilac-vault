@@ -254,9 +254,10 @@ export async function supabaseSaveMemory(memory: Memory): Promise<void> {
   const client = getSupabaseClient();
   if (!client) return;
 
-  const currentFolder = memory.folder || 'General ✨';
   const cleanTags = (memory.tags || []).filter((t) => !t.startsWith('folder:'));
-  cleanTags.push(`folder:${currentFolder}`);
+  if (memory.folder && memory.folder.trim() && memory.folder !== 'General ✨') {
+    cleanTags.push(`folder:${memory.folder.trim()}`);
+  }
 
   const { error } = await client.from('memories').upsert({
     id: memory.id,
@@ -301,7 +302,10 @@ export async function supabaseGetAllMemories(vaultId?: string): Promise<Memory[]
   return (data || []).map((row) => {
     const rawTags: string[] = row.tags || [];
     const folderTag = rawTags.find((t) => t.startsWith('folder:'));
-    const folder = folderTag ? folderTag.replace('folder:', '') : (row.folder || 'General ✨');
+    let folder = folderTag ? folderTag.replace('folder:', '') : row.folder;
+    if (folder === 'General ✨' || folder === 'General') {
+      folder = undefined;
+    }
     const userTags = rawTags.filter((t) => !t.startsWith('folder:'));
 
     return {
