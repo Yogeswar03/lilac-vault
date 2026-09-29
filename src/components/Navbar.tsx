@@ -15,12 +15,14 @@ interface NavbarProps {
   onOpenProfile: () => void;
   onOpenCloudSettings: () => void;
   onOpenCamera?: () => void;
+  onOpenBucketList?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   onOpenHowItWorks,
   onOpenProfile,
   onOpenCloudSettings,
+  onOpenBucketList,
 }) => {
   const { vault, currentUser, partnerUser, logoutUser } = useVault();
 
@@ -85,8 +87,22 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Right Utilities (Cloud + Tour + Profile + Logout) */}
+        {/* Right Utilities (Bucket List + Cloud + Tour + Profile + Logout) */}
         <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+          {/* Places & Bucket List */}
+          {onOpenBucketList && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onOpenBucketList}
+              className="p-2 rounded-xl text-purple-700 hover:text-purple-950 bg-lavender-50 hover:bg-lavender-100 border border-lavender-200 transition-colors flex items-center gap-1.5 text-xs font-bold"
+              title="Places We Want to Go & Bucket List 🗺️"
+            >
+              <span className="text-sm">🗺️</span>
+              <span className="hidden md:inline text-[11px]">Bucket List</span>
+            </motion.button>
+          )}
+
           {/* Cloud Sync Status */}
           <motion.button
             whileHover={{ scale: 1.05 }}

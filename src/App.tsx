@@ -13,13 +13,14 @@ import { HowItWorksModal } from './components/HowItWorksModal';
 import { OnboardingModal } from './components/OnboardingModal';
 import { CloudSettingsModal } from './components/CloudSettingsModal';
 import { CuteCameraModal } from './components/CuteCameraModal';
+import { BucketListModal } from './components/BucketListModal';
 import { DemoSwitcherBar } from './components/DemoSwitcherBar';
 import { BottomNavDock } from './components/BottomNavDock';
 import { LavenderLogo } from './components/LavenderLogo';
 import { Memory } from './types';
 
 const MainAppContent: React.FC = () => {
-  const { vault, currentUser, isLoading, startDemoMode, chatMessages, unreadChatCount, markChatAsRead } = useVault();
+  const { vault, currentUser, isLoading, startDemoMode, chatMessages, unreadChatCount, markChatAsRead, bucketList } = useVault();
 
   // Active Main View: 'gallery' or 'chat' (full page)
   const [activeView, setActiveView] = useState<'gallery' | 'chat'>('gallery');
@@ -38,7 +39,10 @@ const MainAppContent: React.FC = () => {
   const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
   const [isCloudSettingsOpen, setIsCloudSettingsOpen] = useState(false);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [isBucketListOpen, setIsBucketListOpen] = useState(false);
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
+
+  const pendingBucketCount = bucketList.filter((b) => !b.isCompleted).length;
 
   if (isLoading) {
     return (
@@ -97,6 +101,7 @@ const MainAppContent: React.FC = () => {
             onOpenProfile={() => setIsProfileOpen(true)}
             onOpenCloudSettings={() => setIsCloudSettingsOpen(true)}
             onOpenCamera={() => setIsCameraOpen(true)}
+            onOpenBucketList={() => setIsBucketListOpen(true)}
           />
 
           <HeroBanner
@@ -105,12 +110,14 @@ const MainAppContent: React.FC = () => {
             onOpenChat={() => setActiveView('chat')}
             onOpenProfile={() => setIsProfileOpen(true)}
             onOpenCamera={() => setIsCameraOpen(true)}
+            onOpenBucketList={() => setIsBucketListOpen(true)}
           />
 
           <main className="flex-1">
             <GalleryGrid
               onSelectMemory={(mem) => setSelectedMemory(mem)}
               onOpenUpload={() => setIsUploadOpen(true)}
+              onOpenBucketList={() => setIsBucketListOpen(true)}
             />
           </main>
         </div>
@@ -125,6 +132,11 @@ const MainAppContent: React.FC = () => {
       <CuteCameraModal
         isOpen={isCameraOpen}
         onClose={() => setIsCameraOpen(false)}
+      />
+
+      <BucketListModal
+        isOpen={isBucketListOpen}
+        onClose={() => setIsBucketListOpen(false)}
       />
 
       <AIReelModal
@@ -161,6 +173,8 @@ const MainAppContent: React.FC = () => {
           onOpenUpload={() => setIsUploadOpen(true)}
           onOpenReel={() => setIsReelOpen(true)}
           onOpenCamera={() => setIsCameraOpen(true)}
+          onOpenBucketList={() => setIsBucketListOpen(true)}
+          bucketCount={pendingBucketCount}
           chatMessageCount={unreadChatCount}
         />
       )}

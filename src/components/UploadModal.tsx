@@ -25,8 +25,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose }) => 
   const [queuedMedia, setQueuedMedia] = useState<QueuedMedia[]>([]);
   const [caption, setCaption] = useState('');
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [selectedFolder, setSelectedFolder] = useState<string>(() => (activeFolder !== 'All' ? activeFolder : 'General ✨'));
-  const [isCustomFolder, setIsCustomFolder] = useState(false);
+  const [selectedFolder, setSelectedFolder] = useState<string>(() => (activeFolder && activeFolder !== 'All' ? activeFolder : (folders[0] || '')));
+  const [isCustomFolder, setIsCustomFolder] = useState(() => folders.length === 0);
   const [customFolderName, setCustomFolderName] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>(['cozy']);
   const [aiMood, setAiMood] = useState('Sweet Moments');

@@ -307,7 +307,7 @@ function getFacePropSvg(propId: string): string {
 }
 
 export const CuteCameraModal: React.FC<CuteCameraModalProps> = ({ isOpen, onClose }) => {
-  const { uploadMemory, triggerSparkleExplosion } = useVault();
+  const { uploadMemory, triggerSparkleExplosion, folders, activeFolder } = useVault();
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -496,7 +496,7 @@ export const CuteCameraModal: React.FC<CuteCameraModalProps> = ({ isOpen, onClos
         tags,
         date: new Date().toISOString().split('T')[0],
         aiMood: `${activeProp.emoji} ${activeColor.moodTag}`,
-        folder: 'Cute Selfies 📸',
+        folder: activeFolder && activeFolder !== 'All' ? activeFolder : (folders && folders.length > 0 ? folders[0] : 'Selfies 📸'),
       });
 
       triggerSparkleExplosion();

@@ -97,6 +97,7 @@ export async function saveVault(vault: Vault): Promise<void> {
     if (vault.id) localStorage.setItem('lilac_vault_id', vault.id);
     if (vault.accessCode) localStorage.setItem('lilac_vault_code', vault.accessCode.trim().toUpperCase());
     if (vault.folders) localStorage.setItem('lilac_folders', JSON.stringify(vault.folders));
+    if (vault.bucketList) localStorage.setItem('lilac_bucket_list', JSON.stringify(vault.bucketList));
   }
 
   if (isSupabaseConfigured()) {
@@ -605,6 +606,7 @@ export async function clearAllVaultData(): Promise<void> {
     localStorage.removeItem('lilac_vault_id');
     localStorage.removeItem('lilac_vault_code');
     localStorage.removeItem('lilac_folders');
+    localStorage.removeItem('lilac_bucket_list');
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -637,6 +639,44 @@ export const SAMPLE_VAULT: Vault = {
   createdAt: '2025-06-10T10:00:00.000Z',
   users: SAMPLE_USERS,
   isLocked: true, // Strictly 2 users
+  folders: ['Weekend Dates ☕', 'Road Trips 🚗'],
+  bucketList: [
+    {
+      id: 'b_1',
+      vaultId: 'vault_demo_lavender',
+      title: 'Watch sunset from Oia cliffside',
+      location: 'Santorini, Greece 🇬🇷',
+      category: 'places',
+      isCompleted: false,
+      createdBy: 'Elena 🪻',
+      createdAt: '2026-08-01T10:00:00Z',
+      notes: 'Book a cliffside dinner table at sunset!',
+    },
+    {
+      id: 'b_2',
+      vaultId: 'vault_demo_lavender',
+      title: 'Try viral strawberry souffle pancakes',
+      location: 'Tokyo, Japan 🇯🇵',
+      category: 'cafe',
+      isCompleted: false,
+      createdBy: 'Liam ☕',
+      createdAt: '2026-08-05T12:00:00Z',
+      notes: 'Go early in the morning to beat the line.',
+    },
+    {
+      id: 'b_3',
+      vaultId: 'vault_demo_lavender',
+      title: 'Stargazing picnic with hot chocolate',
+      location: 'Blue Ridge Mountains 🌲',
+      category: 'adventure',
+      isCompleted: true,
+      completedAt: '2026-07-22T22:00:00Z',
+      completedBy: 'Elena 🪻',
+      createdBy: 'Elena 🪻',
+      createdAt: '2026-06-15T09:00:00Z',
+      notes: 'Brought the cozy wool blanket!',
+    },
+  ],
 };
 
 export const SAMPLE_MEMORIES: Memory[] = [
@@ -653,6 +693,7 @@ export const SAMPLE_MEMORIES: Memory[] = [
     hearts: ['user_elena', 'user_liam'],
     tags: ['cafe', 'matcha', 'weekend'],
     aiMood: 'Lofi Lavender Afternoon',
+    folder: 'Weekend Dates ☕',
     notes: [
       {
         id: 'n_1',
@@ -677,6 +718,7 @@ export const SAMPLE_MEMORIES: Memory[] = [
     hearts: ['user_elena', 'user_liam'],
     tags: ['picnic', 'sunset', 'nature'],
     aiMood: 'Golden Lavender Sunset',
+    folder: 'Weekend Dates ☕',
     notes: [
       {
         id: 'n_2',
@@ -701,6 +743,7 @@ export const SAMPLE_MEMORIES: Memory[] = [
     hearts: ['user_liam'],
     tags: ['photobooth', 'vintage', 'polaroid'],
     aiMood: 'Retro Nostalgia',
+    folder: 'Weekend Dates ☕',
     notes: [
       {
         id: 'n_3',
@@ -725,6 +768,7 @@ export const SAMPLE_MEMORIES: Memory[] = [
     hearts: ['user_elena', 'user_liam'],
     tags: ['roadtrip', 'summer', 'music'],
     aiMood: 'Clear Skies & Breeze',
+    folder: 'Road Trips 🚗',
     notes: [],
   },
 ];

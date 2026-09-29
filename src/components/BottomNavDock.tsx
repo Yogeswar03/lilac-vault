@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Images, PlusCircle, Camera, MessageCircle, Film, Sparkles } from 'lucide-react';
+import { Images, PlusCircle, Camera, MessageCircle, MapPin } from 'lucide-react';
 
 interface BottomNavDockProps {
   activeView: 'gallery' | 'chat';
@@ -8,6 +8,8 @@ interface BottomNavDockProps {
   onOpenUpload: () => void;
   onOpenReel: () => void;
   onOpenCamera: () => void;
+  onOpenBucketList?: () => void;
+  bucketCount?: number;
   chatMessageCount?: number;
 }
 
@@ -15,8 +17,9 @@ export const BottomNavDock: React.FC<BottomNavDockProps> = ({
   activeView,
   onChangeView,
   onOpenUpload,
-  onOpenReel,
   onOpenCamera,
+  onOpenBucketList,
+  bucketCount = 0,
   chatMessageCount = 0,
 }) => {
   return (
@@ -28,7 +31,7 @@ export const BottomNavDock: React.FC<BottomNavDockProps> = ({
         style={{ backgroundColor: '#180B2B' }}
         className="relative rounded-3xl p-2 shadow-2xl border-2 border-purple-400/60 shadow-purple-950/80 flex items-center justify-around gap-1 sm:gap-2"
       >
-        {/* 1. Memories / Gallery View */}
+        {/* 1. Memories / Folders View */}
         <motion.button
           whileHover={{ scale: 1.06 }}
           whileTap={{ scale: 0.92 }}
@@ -39,23 +42,34 @@ export const BottomNavDock: React.FC<BottomNavDockProps> = ({
               ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-cute border border-purple-300'
               : 'text-purple-100 hover:text-white bg-white/5 hover:bg-white/15'
           }`}
-          title="Memories Gallery"
+          title="Memory Folders & Albums"
         >
-          <Images className={`w-6 h-6 sm:w-7 sm:h-7 mb-0.5 ${activeView === 'gallery' ? 'text-white' : 'text-purple-200'}`} />
-          <span className="text-[10px] sm:text-xs font-extrabold tracking-tight text-white">Memories</span>
+          <Images
+            className={`w-6 h-6 sm:w-7 sm:h-7 mb-0.5 ${
+              activeView === 'gallery' ? 'text-white' : 'text-purple-200'
+            }`}
+          />
+          <span className="text-[10px] sm:text-xs font-extrabold tracking-tight text-white">Folders</span>
         </motion.button>
 
-        {/* 2. Add / Upload Photo */}
+        {/* 2. Places / Bucket List 🗺️ */}
         <motion.button
           whileHover={{ scale: 1.06 }}
           whileTap={{ scale: 0.92 }}
           type="button"
-          onClick={onOpenUpload}
-          className="flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-2xl transition-all min-w-[54px] sm:min-w-[64px] text-purple-100 hover:text-white bg-white/5 hover:bg-white/15"
-          title="Upload Memory (Photo / Video)"
+          onClick={onOpenBucketList}
+          className="flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-2xl transition-all min-w-[54px] sm:min-w-[64px] text-purple-100 hover:text-white bg-white/5 hover:bg-white/15 relative"
+          title="Places We Want to Go & Bucket List 🗺️"
         >
-          <PlusCircle className="w-6 h-6 sm:w-7 sm:h-7 mb-0.5 text-purple-200" />
-          <span className="text-[10px] sm:text-xs font-extrabold tracking-tight text-white">Add Photo</span>
+          <div className="relative">
+            <MapPin className="w-6 h-6 sm:w-7 sm:h-7 mb-0.5 text-purple-200" />
+            {bucketCount > 0 && (
+              <span className="absolute -top-1.5 -right-2 px-1.5 py-0.2 rounded-full bg-gradient-to-r from-amber-500 to-yellow-500 text-purple-950 text-[10px] font-black border border-white/60 shadow-xs">
+                {bucketCount}
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] sm:text-xs font-extrabold tracking-tight text-white">Places</span>
         </motion.button>
 
         {/* 3. CENTER: Big Cute Selfie Camera with Filters 📸 */}
@@ -98,7 +112,11 @@ export const BottomNavDock: React.FC<BottomNavDockProps> = ({
           title="Capsule Chat"
         >
           <div className="relative">
-            <MessageCircle className={`w-6 h-6 sm:w-7 sm:h-7 mb-0.5 ${activeView === 'chat' ? 'text-white' : 'text-purple-200'}`} />
+            <MessageCircle
+              className={`w-6 h-6 sm:w-7 sm:h-7 mb-0.5 ${
+                activeView === 'chat' ? 'text-white' : 'text-purple-200'
+              }`}
+            />
             {chatMessageCount > 0 && (
               <span className="absolute -top-1.5 -right-2.5 px-1.5 py-0.2 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 text-white text-[10px] font-black border border-white/60 shadow-xs animate-pulse">
                 {chatMessageCount > 99 ? '99+' : chatMessageCount}
@@ -108,20 +126,17 @@ export const BottomNavDock: React.FC<BottomNavDockProps> = ({
           <span className="text-[10px] sm:text-xs font-extrabold tracking-tight text-white">Chat</span>
         </motion.button>
 
-        {/* 5. AI Video Reel */}
+        {/* 5. Add / Upload Photo */}
         <motion.button
           whileHover={{ scale: 1.06 }}
           whileTap={{ scale: 0.92 }}
           type="button"
-          onClick={onOpenReel}
-          className="flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-2xl transition-all min-w-[54px] sm:min-w-[64px] text-purple-100 hover:text-white bg-white/5 hover:bg-white/15 relative group"
-          title="AI Cinematic Video Reel"
+          onClick={onOpenUpload}
+          className="flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-2xl transition-all min-w-[54px] sm:min-w-[64px] text-purple-100 hover:text-white bg-white/5 hover:bg-white/15"
+          title="Upload Memory (Photo / Video)"
         >
-          <div className="relative">
-            <Film className="w-6 h-6 sm:w-7 sm:h-7 mb-0.5 text-purple-200" />
-            <Sparkles className="absolute -top-1 -right-2 w-3.5 h-3.5 text-yellow-300 animate-spin" style={{ animationDuration: '6s' }} />
-          </div>
-          <span className="text-[10px] sm:text-xs font-extrabold tracking-tight text-white">Reel</span>
+          <PlusCircle className="w-6 h-6 sm:w-7 sm:h-7 mb-0.5 text-purple-200" />
+          <span className="text-[10px] sm:text-xs font-extrabold tracking-tight text-white">Add</span>
         </motion.button>
       </div>
     </nav>

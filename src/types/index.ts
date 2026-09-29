@@ -16,6 +16,24 @@ export interface Vault {
   users: User[];
   isLocked: boolean; // Once 2 users join, locked = true (strictly 2 users)
   folders?: string[];
+  bucketList?: BucketItem[];
+}
+
+export type BucketCategory = 'places' | 'cafe' | 'adventure' | 'date' | 'general';
+
+export interface BucketItem {
+  id: string;
+  vaultId: string;
+  title: string;
+  location?: string;
+  category: BucketCategory;
+  isCompleted: boolean;
+  completedAt?: string;
+  completedBy?: string;
+  createdBy: string;
+  createdAt: string;
+  notes?: string;
+  targetDate?: string;
 }
 
 export interface MemoryNote {

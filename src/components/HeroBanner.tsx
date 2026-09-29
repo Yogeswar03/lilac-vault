@@ -10,6 +10,7 @@ interface HeroBannerProps {
   onOpenChat: () => void;
   onOpenProfile: () => void;
   onOpenCamera: () => void;
+  onOpenBucketList?: () => void;
 }
 
 export const HeroBanner: React.FC<HeroBannerProps> = ({
@@ -18,6 +19,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
   onOpenChat,
   onOpenProfile,
   onOpenCamera,
+  onOpenBucketList,
 }) => {
   const { vault, currentUser, partnerUser, memories } = useVault();
   const [copied, setCopied] = useState(false);
@@ -238,6 +240,16 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
                 <Camera className="w-4 h-4 text-yellow-300" />
                 <span className="hidden sm:inline">Selfie</span>
               </button>
+              {onOpenBucketList && (
+                <button
+                  onClick={onOpenBucketList}
+                  className="flex-1 sm:flex-none px-3.5 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs border border-white/20 flex items-center justify-center gap-1.5 transition-all"
+                  title="Places We Want to Go & Bucket List 🗺️"
+                >
+                  <span className="text-sm">🗺️</span>
+                  <span>Bucket List</span>
+                </button>
+              )}
               <button
                 onClick={onOpenReel}
                 className="flex-1 sm:flex-none px-3.5 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs border border-white/20 flex items-center justify-center gap-1.5 transition-all"

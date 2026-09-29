@@ -97,9 +97,13 @@ export async function supabaseSaveVault(vault: Vault): Promise<void> {
   const client = getSupabaseClient();
   if (!client) return;
 
-  const usersWithFolders = (vault.users || []).map((u, idx) => {
-    if (idx === 0 && vault.folders) {
-      return { ...u, customFolders: vault.folders };
+  const usersWithMeta = (vault.users || []).map((u, idx) => {
+    if (idx === 0) {
+      return {
+        ...u,
+        customFolders: vault.folders || [],
+        bucketList: vault.bucketList || [],
+      };
     }
     return u;
   });
@@ -109,7 +113,7 @@ export async function supabaseSaveVault(vault: Vault): Promise<void> {
     name: vault.name,
     access_code: vault.accessCode.trim().toUpperCase(),
     created_at: vault.createdAt,
-    users: usersWithFolders,
+    users: usersWithMeta,
     is_locked: vault.isLocked,
   };
 
@@ -183,6 +187,7 @@ export async function supabaseGetVault(targetIdOrCode?: string): Promise<Vault |
 
   const users = data.users || [];
   const folders = (users[0] as any)?.customFolders || [];
+  const bucketList = (users[0] as any)?.bucketList || [];
 
   return {
     id: data.id,
@@ -192,6 +197,7 @@ export async function supabaseGetVault(targetIdOrCode?: string): Promise<Vault |
     users,
     isLocked: data.is_locked,
     folders,
+    bucketList,
   };
 }
 
@@ -217,6 +223,7 @@ export async function supabaseGetVaultByCode(accessCode: string): Promise<Vault 
 
   const users = data.users || [];
   const folders = (users[0] as any)?.customFolders || [];
+  const bucketList = (users[0] as any)?.bucketList || [];
 
   return {
     id: data.id,
@@ -226,6 +233,7 @@ export async function supabaseGetVaultByCode(accessCode: string): Promise<Vault 
     users,
     isLocked: data.is_locked,
     folders,
+    bucketList,
   };
 }
 
