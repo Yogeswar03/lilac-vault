@@ -451,6 +451,21 @@ export async function deleteMemory(id: string): Promise<void> {
 
 // Chat Messages Methods (Supabase Cloud + Local API + IndexedDB)
 export async function saveChatMessage(message: ChatMessage): Promise<void> {
+  // 1. Immediately persist to local IndexedDB for instant UI responsiveness
+  try {
+    const db = await openDB();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_MESSAGES, 'readwrite');
+      const store = tx.objectStore(STORE_MESSAGES);
+      store.put(message);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (err) {
+    console.warn('Local indexedDB save error:', err);
+  }
+
+  // 2. Persist to Supabase cloud
   if (isSupabaseConfigured()) {
     try {
       await supabaseSaveChatMessage(message);
@@ -468,15 +483,6 @@ export async function saveChatMessage(message: ChatMessage): Promise<void> {
       // offline fallback
     }
   }
-
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_MESSAGES, 'readwrite');
-    const store = tx.objectStore(STORE_MESSAGES);
-    store.put(message);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
 }
 
 export async function getAllChatMessages(vaultId?: string): Promise<ChatMessage[]> {
@@ -486,7 +492,15 @@ export async function getAllChatMessages(vaultId?: string): Promise<ChatMessage[
   if (isSupabaseConfigured()) {
     try {
       const cloudMsgs = await supabaseGetAllChatMessages(activeVaultId);
-      if (cloudMsgs && cloudMsgs.length > 0) {
+      if (Array.isArray(cloudMsgs)) {
+        try {
+          const db = await openDB();
+          const tx = db.transaction(STORE_MESSAGES, 'readwrite');
+          const store = tx.objectStore(STORE_MESSAGES);
+          cloudMsgs.forEach((m) => store.put(m));
+        } catch {
+          // quiet local cache fallback
+        }
         return cloudMsgs;
       }
     } catch (e) {
@@ -501,6 +515,11 @@ export async function getAllChatMessages(vaultId?: string): Promise<ChatMessage[
           const all = data.messages as ChatMessage[];
           const items = all.filter((m) => m.vaultId === activeVaultId);
           items.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+          try {
+            const db = await openDB();
+            const tx = db.transaction(STORE_MESSAGES, 'readwrite');
+            items.forEach((m) => tx.objectStore(STORE_MESSAGES).put(m));
+          } catch {}
           return items;
         }
       }
@@ -550,6 +569,19 @@ export async function getLocalChatMessages(vaultId?: string): Promise<ChatMessag
 
 // Delete Chat Message
 export async function deleteChatMessage(id: string): Promise<void> {
+  try {
+    const db = await openDB();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_MESSAGES, 'readwrite');
+      const store = tx.objectStore(STORE_MESSAGES);
+      store.delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (err) {
+    console.warn('Local indexedDB delete error:', err);
+  }
+
   if (isSupabaseConfigured()) {
     try {
       await supabaseDeleteChatMessage(id);
@@ -563,15 +595,6 @@ export async function deleteChatMessage(id: string): Promise<void> {
       // offline fallback
     }
   }
-
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_MESSAGES, 'readwrite');
-    const store = tx.objectStore(STORE_MESSAGES);
-    store.delete(id);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
 }
 
 // Save Current Active User ID

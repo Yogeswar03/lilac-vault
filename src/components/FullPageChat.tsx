@@ -57,7 +57,7 @@ export const FullPageChat: React.FC<FullPageChatProps> = ({
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-lavender-50 via-lavender-100/40 to-lavender-100/60 pb-16 sm:pb-4">
+    <div className="h-[100dvh] flex flex-col bg-gradient-to-b from-lavender-50 via-lavender-100/40 to-lavender-100/60 overflow-hidden">
       {/* Top Sticky Header */}
       <header className="sticky top-0 z-30 glass-panel border-b border-lavender-200/90 px-3 py-2.5 sm:px-6 sm:py-3 shadow-xs">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-2">
@@ -269,11 +269,11 @@ export const FullPageChat: React.FC<FullPageChatProps> = ({
                     </span>
                     {isMe && (
                       partnerUser?.lastReadAt && new Date(msg.createdAt).getTime() <= new Date(partnerUser.lastReadAt).getTime() ? (
-                        <span className="text-purple-700 font-black tracking-tighter ml-0.5 inline-flex items-center" title="Read by partner">
+                        <span className="text-purple-600 font-extrabold tracking-tighter ml-1 inline-flex items-center text-xs" title="Read by partner">
                           ✓✓
                         </span>
                       ) : (
-                        <span className="text-purple-300 font-bold ml-0.5 inline-flex items-center" title="Sent to capsule">
+                        <span className="text-purple-400 font-bold ml-1 inline-flex items-center text-xs" title="Sent to capsule">
                           ✓
                         </span>
                       )
@@ -288,7 +288,7 @@ export const FullPageChat: React.FC<FullPageChatProps> = ({
       </main>
 
       {/* Bottom Sticky Controls & Input Bar */}
-      <footer className="sticky bottom-0 z-30 glass-panel bg-white/95 backdrop-blur-md border-t border-lavender-200 shadow-cute-lg">
+      <footer className="z-30 glass-panel bg-white/95 backdrop-blur-md border-t border-lavender-200 shadow-cute-lg flex-shrink-0">
         <div className="max-w-4xl mx-auto p-2 sm:p-3">
           {/* Quick Prompt Pills Bar */}
           <div className="pb-2 overflow-x-auto no-scrollbar flex items-center gap-1.5">

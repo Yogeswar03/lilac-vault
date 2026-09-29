@@ -247,8 +247,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
           const remoteMsgs = await getAllChatMessages(remoteVault.id);
           setChatMessages((prev) => {
-            if (remoteMsgs.length > prev.length) {
-              const newArrivals = remoteMsgs.slice(prev.length);
+            const prevIds = new Set(prev.map((m) => m.id));
+            const newArrivals = remoteMsgs.filter((m) => !prevIds.has(m.id));
+            if (newArrivals.length > 0) {
               const fromPartner = newArrivals.filter((m) => m.senderId !== activeId);
               if (fromPartner.length > 0) {
                 playMessageChime();
@@ -256,6 +257,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               if (newArrivals.some((m) => m.type === 'sparkle_burst')) {
                 triggerSparkleExplosion();
               }
+            }
+            if (
+              remoteMsgs.length !== prev.length ||
+              newArrivals.length > 0 ||
+              prev.some((m, idx) => m.id !== remoteMsgs[idx]?.id)
+            ) {
               return remoteMsgs;
             }
             return prev;
@@ -281,33 +288,38 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         },
         onMemoryChange: async () => {
           const activeId = getActiveUserId();
-          if (!activeId) return;
-          const v = await getVault();
-          if (v && v.users.some((u) => u.id === activeId)) {
-            const m = await getAllMemories(v.id);
-            setMemories(m);
-          }
+          const activeVaultId = localStorage.getItem('lilac_vault_id');
+          if (!activeId || !activeVaultId) return;
+          const m = await getAllMemories(activeVaultId);
+          setMemories(m);
         },
         onChatChange: async () => {
           const activeId = getActiveUserId();
-          if (!activeId) return;
-          const v = await getVault();
-          if (v && v.users.some((u) => u.id === activeId)) {
-            const c = await getAllChatMessages(v.id);
-            setChatMessages((prev) => {
-              if (c.length > prev.length) {
-                const newArrivals = c.slice(prev.length);
-                const fromPartner = newArrivals.filter((m) => m.senderId !== activeId);
-                if (fromPartner.length > 0) {
-                  playMessageChime();
-                }
-                if (newArrivals.some((m) => m.type === 'sparkle_burst')) {
-                  triggerSparkleExplosion();
-                }
+          const activeVaultId = localStorage.getItem('lilac_vault_id');
+          if (!activeId || !activeVaultId) return;
+
+          const c = await getAllChatMessages(activeVaultId);
+          setChatMessages((prev) => {
+            const prevIds = new Set(prev.map((m) => m.id));
+            const newArrivals = c.filter((m) => !prevIds.has(m.id));
+            if (newArrivals.length > 0) {
+              const fromPartner = newArrivals.filter((m) => m.senderId !== activeId);
+              if (fromPartner.length > 0) {
+                playMessageChime();
               }
+              if (newArrivals.some((m) => m.type === 'sparkle_burst')) {
+                triggerSparkleExplosion();
+              }
+            }
+            if (
+              c.length !== prev.length ||
+              newArrivals.length > 0 ||
+              prev.some((m, idx) => m.id !== c[idx]?.id)
+            ) {
               return c;
-            });
-          }
+            }
+            return prev;
+          });
         },
       });
     }
@@ -487,34 +499,61 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     await saveVault(updatedVault);
   };
 
-  // Calculate unread chat messages from partner since lastReadTimestamp
+  // Calculate unread chat messages from partner since lastReadTimestamp or currentUser.lastReadAt
   const unreadChatCount = React.useMemo(() => {
     if (!currentUser) return 0;
-    const lastRead = new Date(lastReadTimestamp).getTime();
+    const userReadTime = currentUser.lastReadAt ? new Date(currentUser.lastReadAt).getTime() : 0;
+    const localReadTime = new Date(lastReadTimestamp).getTime() || 0;
+    const effectiveReadTime = Math.max(userReadTime, localReadTime);
+
     return chatMessages.filter(
-      (m) => m.senderId !== currentUser.id && new Date(m.createdAt).getTime() > lastRead
+      (m) => m.senderId !== currentUser.id && new Date(m.createdAt).getTime() > effectiveReadTime
     ).length;
   }, [chatMessages, currentUser, lastReadTimestamp]);
 
   // Mark all chat messages as read and sync with partner
-  const markChatAsRead = async () => {
-    const now = new Date().toISOString();
-    setLastReadTimestamp(now);
+  const markChatAsRead = React.useCallback(async () => {
+    if (!vault || !currentUser) return;
+
+    // Check if there are any messages from partner
+    const partnerMessages = chatMessages.filter((m) => m.senderId !== currentUser.id);
+    if (partnerMessages.length === 0) {
+      return;
+    }
+
+    const latestPartnerMsgTime = Math.max(...partnerMessages.map((m) => new Date(m.createdAt).getTime()));
+    const currentReadTime = currentUser.lastReadAt ? new Date(currentUser.lastReadAt).getTime() : 0;
+    const localReadTime = new Date(lastReadTimestamp).getTime() || 0;
+    const effectiveReadTime = Math.max(currentReadTime, localReadTime);
+
+    // If we have already read all partner messages, skip to prevent continuous re-saving
+    if (effectiveReadTime >= latestPartnerMsgTime) {
+      return;
+    }
+
+    // Use max of now and latest message time to handle any phone clock skew
+    const readTimeNum = Math.max(Date.now(), latestPartnerMsgTime);
+    const nowIso = new Date(readTimeNum).toISOString();
+
+    setLastReadTimestamp(nowIso);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('lilac_last_read_chat', now);
+      localStorage.setItem('lilac_last_read_chat', nowIso);
     }
-    if (vault && currentUser) {
-      const updatedUsers = vault.users.map((u) =>
-        u.id === currentUser.id ? { ...u, lastReadAt: now } : u
-      );
-      const updatedVault: Vault = {
-        ...vault,
-        users: updatedUsers,
-      };
-      setVault(updatedVault);
-      saveVault(updatedVault).catch(() => {});
+
+    const updatedUsers = vault.users.map((u) =>
+      u.id === currentUser.id ? { ...u, lastReadAt: nowIso } : u
+    );
+    const updatedVault: Vault = {
+      ...vault,
+      users: updatedUsers,
+    };
+    setVault(updatedVault);
+    try {
+      await saveVault(updatedVault);
+    } catch {
+      // quiet fallback
     }
-  };
+  }, [vault, currentUser, chatMessages, lastReadTimestamp]);
 
   // Lavender, gold & rose sparkle explosion helper
   const triggerSparkleExplosion = () => {
@@ -742,7 +781,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!vault || !currentUser || (!text.trim() && type === 'text')) return;
 
     const newMsg: ChatMessage = {
-      id: `msg_${Date.now()}`,
+      id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       vaultId: vault.id,
       senderId: currentUser.id,
       senderName: currentUser.name,
@@ -752,11 +791,18 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       type,
     };
 
-    await dbSaveChatMessage(newMsg);
+    // 1. Instant optimistic update in local state (<1ms)
     setChatMessages((prev) => [...prev, newMsg]);
 
     if (type === 'sparkle_burst') {
       triggerSparkleExplosion();
+    }
+
+    // 2. Persist to storage & cloud in background
+    try {
+      await dbSaveChatMessage(newMsg);
+    } catch (err) {
+      console.error('Error saving chat message:', err);
     }
   };
 
@@ -911,8 +957,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Delete Chat Message
   const deleteChatMessage = async (msgId: string) => {
-    await dbDeleteChatMessage(msgId);
     setChatMessages((prev) => prev.filter((m) => m.id !== msgId));
+    try {
+      await dbDeleteChatMessage(msgId);
+    } catch (err) {
+      console.error('Error deleting chat message:', err);
+    }
   };
 
   // Login using Access Code (capsule lookup without leaking memories prematurely)
