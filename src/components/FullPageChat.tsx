@@ -8,7 +8,7 @@ interface FullPageChatProps {
   onBack: () => void;
   onOpenUpload: () => void;
   onOpenReel: () => void;
-  onOpenProfile: () => void;
+  onOpenProfile: (tab?: 'profiles' | 'pin') => void;
   onOpenCamera: () => void;
 }
 
@@ -78,7 +78,7 @@ export const FullPageChat: React.FC<FullPageChatProps> = ({
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="relative flex-shrink-0">
                 <button
-                  onClick={onOpenProfile}
+                  onClick={() => onOpenProfile('profiles')}
                   className="w-10 h-10 rounded-full bg-white border-2 border-lavender-300 hover:border-purple-600 flex items-center justify-center text-xl shadow-xs transition-transform hover:scale-105"
                   title="Click to edit profile & nicknames"
                 >

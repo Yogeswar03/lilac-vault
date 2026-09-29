@@ -36,11 +36,17 @@ const MainAppContent: React.FC = () => {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isReelOpen, setIsReelOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [profileTab, setProfileTab] = useState<'profiles' | 'pin'>('profiles');
   const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
   const [isCloudSettingsOpen, setIsCloudSettingsOpen] = useState(false);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isBucketListOpen, setIsBucketListOpen] = useState(false);
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
+
+  const handleOpenProfile = (tab: 'profiles' | 'pin' = 'profiles') => {
+    setProfileTab(tab);
+    setIsProfileOpen(true);
+  };
 
   const pendingBucketCount = bucketList.filter((b) => !b.isCompleted).length;
 
@@ -86,7 +92,7 @@ const MainAppContent: React.FC = () => {
           onBack={() => setActiveView('gallery')}
           onOpenUpload={() => setIsUploadOpen(true)}
           onOpenReel={() => setIsReelOpen(true)}
-          onOpenProfile={() => setIsProfileOpen(true)}
+          onOpenProfile={() => handleOpenProfile('profiles')}
           onOpenCamera={() => setIsCameraOpen(true)}
         />
       ) : (
@@ -98,7 +104,7 @@ const MainAppContent: React.FC = () => {
             onOpenUpload={() => setIsUploadOpen(true)}
             onOpenReel={() => setIsReelOpen(true)}
             onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
-            onOpenProfile={() => setIsProfileOpen(true)}
+            onOpenProfile={handleOpenProfile}
             onOpenCloudSettings={() => setIsCloudSettingsOpen(true)}
             onOpenCamera={() => setIsCameraOpen(true)}
             onOpenBucketList={() => setIsBucketListOpen(true)}
@@ -108,7 +114,7 @@ const MainAppContent: React.FC = () => {
             onOpenUpload={() => setIsUploadOpen(true)}
             onOpenReel={() => setIsReelOpen(true)}
             onOpenChat={() => setActiveView('chat')}
-            onOpenProfile={() => setIsProfileOpen(true)}
+            onOpenProfile={handleOpenProfile}
             onOpenCamera={() => setIsCameraOpen(true)}
             onOpenBucketList={() => setIsBucketListOpen(true)}
           />
@@ -146,6 +152,7 @@ const MainAppContent: React.FC = () => {
 
       <EditProfileModal
         isOpen={isProfileOpen}
+        initialTab={profileTab}
         onClose={() => setIsProfileOpen(false)}
       />
 

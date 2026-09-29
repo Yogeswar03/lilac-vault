@@ -67,6 +67,7 @@ interface VaultContextType {
   loginUser: (userId: string, pin?: string) => Promise<{ success: boolean; error?: string }>;
   loginWithCode: (accessCode: string) => Promise<{ success: boolean; error?: string; users?: User[]; vault?: Vault }>;
   verifyVaultPasscode: (pin: string) => boolean;
+  updateVaultPasscode: (newPin: string) => Promise<{ success: boolean; error?: string }>;
   logoutUser: () => void;
   unreadChatCount: number;
   markChatAsRead: () => Promise<void>;
@@ -916,6 +917,30 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return cleanPin === expectedPin || cleanPin === vault.accessCode.replace(/\D/g, '');
   };
 
+  // Update / Set Vault Passcode (PIN) for existing vault
+  const updateVaultPasscode = async (newPin: string): Promise<{ success: boolean; error?: string }> => {
+    if (!vault) return { success: false, error: 'No active capsule found.' };
+    const cleanPin = newPin.trim();
+    if (cleanPin.length < 4) {
+      return { success: false, error: 'Security PIN must be at least 4 digits.' };
+    }
+
+    const updatedVault: Vault = {
+      ...vault,
+      passcode: cleanPin,
+    };
+
+    setVault(updatedVault);
+    try {
+      await saveVault(updatedVault);
+      triggerSparkleExplosion();
+      return { success: true };
+    } catch (err: any) {
+      console.error('Error saving updated PIN:', err);
+      return { success: false, error: err?.message || 'Failed to update PIN.' };
+    }
+  };
+
   // Direct login for existing user
   const loginUser = async (userId: string, pin?: string): Promise<{ success: boolean; error?: string }> => {
     if (!vault) return { success: false, error: 'No active capsule found.' };
@@ -925,8 +950,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const activeId = getActiveUserId();
     // If device is unverified as this user and capsule is full (2/2)
     if (vault.users.length >= 2 && activeId !== userId) {
-      const validPin = vault.passcode || vault.accessCode.replace(/\D/g, '').slice(-4).padStart(4, '0');
-      if (pin !== undefined && pin.trim() !== validPin.trim()) {
+      if (pin !== undefined && !verifyVaultPasscode(pin)) {
         return { success: false, error: 'Incorrect 4-digit security PIN! Access denied.' };
       }
     }
@@ -1050,6 +1074,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         loginUser,
         loginWithCode,
         verifyVaultPasscode,
+        updateVaultPasscode,
         logoutUser,
         triggerSparkleExplosion,
         resetAllData,

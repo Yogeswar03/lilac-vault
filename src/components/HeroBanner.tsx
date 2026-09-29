@@ -8,7 +8,7 @@ interface HeroBannerProps {
   onOpenUpload: () => void;
   onOpenReel: () => void;
   onOpenChat: () => void;
-  onOpenProfile: () => void;
+  onOpenProfile: (tab?: 'profiles' | 'pin') => void;
   onOpenCamera: () => void;
   onOpenBucketList?: () => void;
 }
@@ -115,7 +115,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
 
             {/* Connection badge (Click to edit nicknames) */}
             <button
-              onClick={onOpenProfile}
+              onClick={() => onOpenProfile('profiles')}
               className="flex items-center gap-3 pt-2 text-left group hover:opacity-90 transition-opacity"
               title="Click to edit nicknames & avatars"
             >
@@ -198,6 +198,21 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
                     </>
                   )}
                 </button>
+              </div>
+
+              {/* Security PIN shortcut button */}
+              <div className="pt-1.5 border-t border-white/10 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => onOpenProfile('pin')}
+                  className="text-[11px] text-lavender-200 hover:text-white underline font-semibold flex items-center gap-1 transition-colors"
+                >
+                  <Lock className="w-3 h-3 text-yellow-300" />
+                  <span>Set / View Security PIN</span>
+                </button>
+                <span className="text-[10px] text-lavender-300 font-mono">
+                  {vault?.passcode ? '🔒 Custom PIN' : '🔑 Default PIN'}
+                </span>
               </div>
 
               {/* Toast feedback */}

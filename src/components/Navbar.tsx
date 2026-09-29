@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { HelpCircle, Lock, LogOut, Cloud, Share2 } from 'lucide-react';
+import { HelpCircle, Lock, LogOut, Cloud, Share2, Key } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { isSupabaseConfigured } from '../services/supabase';
 import { LavenderLogo } from './LavenderLogo';
@@ -12,7 +12,7 @@ interface NavbarProps {
   onOpenUpload?: () => void;
   onOpenReel?: () => void;
   onOpenHowItWorks: () => void;
-  onOpenProfile: () => void;
+  onOpenProfile: (tab?: 'profiles' | 'pin') => void;
   onOpenCloudSettings: () => void;
   onOpenCamera?: () => void;
   onOpenBucketList?: () => void;
@@ -121,6 +121,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             </span>
           </motion.button>
 
+          {/* Security PIN Settings */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => onOpenProfile('pin')}
+            className="p-2 text-purple-700 hover:text-purple-950 bg-lavender-50 hover:bg-lavender-100 border border-lavender-200 rounded-xl transition-colors flex items-center gap-1.5 text-xs font-bold"
+            title="Vault Security PIN 🔒 (View or Change PIN)"
+          >
+            <Key className="w-4 h-4 text-purple-600" />
+            <span className="hidden sm:inline text-[11px]">PIN 🔒</span>
+          </motion.button>
+
           {/* How It Works Tour */}
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -135,9 +147,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* User Profile Avatar */}
           <div className="flex items-center pl-1 sm:pl-2 border-l border-lavender-200">
             <button
-              onClick={onOpenProfile}
+              onClick={() => onOpenProfile('profiles')}
               className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white border-2 border-lavender-300 hover:border-purple-600 flex items-center justify-center text-base sm:text-lg shadow-sm transition-all hover:scale-105"
-              title={`Logged in as ${currentUser?.name} • Tap to edit nickname`}
+              title={`Logged in as ${currentUser?.name} • Tap to edit nicknames & security PIN`}
             >
               {currentUser?.avatar || '🪻'}
             </button>

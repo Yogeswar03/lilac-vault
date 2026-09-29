@@ -106,7 +106,10 @@ export async function supabaseSaveVault(vault: Vault): Promise<void> {
         passcode: vault.passcode || '',
       };
     }
-    return u;
+    return {
+      ...u,
+      passcode: vault.passcode || '',
+    };
   });
 
   const payload = {
@@ -190,7 +193,7 @@ export async function supabaseGetVault(targetIdOrCode?: string): Promise<Vault |
   const users = data.users || [];
   const folders = (users[0] as any)?.customFolders || [];
   const bucketList = (users[0] as any)?.bucketList || [];
-  const passcode = (users[0] as any)?.passcode || undefined;
+  const passcode = (users[0] as any)?.passcode || (users[1] as any)?.passcode || undefined;
 
   return {
     id: data.id,
@@ -228,7 +231,7 @@ export async function supabaseGetVaultByCode(accessCode: string): Promise<Vault 
   const users = data.users || [];
   const folders = (users[0] as any)?.customFolders || [];
   const bucketList = (users[0] as any)?.bucketList || [];
-  const passcode = (users[0] as any)?.passcode || undefined;
+  const passcode = (users[0] as any)?.passcode || (users[1] as any)?.passcode || undefined;
 
   return {
     id: data.id,

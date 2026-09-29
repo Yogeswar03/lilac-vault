@@ -376,9 +376,9 @@ export const OnboardingModal: React.FC<{
                   🔒
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm text-purple-950 font-cute">Capsule Security Lock</h4>
+                  <h4 className="font-bold text-sm text-purple-950 font-cute">This Vault is Locked 🔒</h4>
                   <p className="text-xs text-purple-800/80 mt-1 max-w-xs mx-auto">
-                    Enter the 4-digit PIN to unlock access for <strong>{vault.users[0]?.name}</strong> and <strong>{vault.users[1]?.name}</strong>:
+                    This vault is locked. Enter your 4-digit security PIN to unlock:
                   </p>
                 </div>
 
@@ -639,13 +639,10 @@ export const OnboardingModal: React.FC<{
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-purple-950 font-cute">
-                    Capsule Strictly Locked (2/2 Paired)
+                    This Vault is Locked 🔒
                   </h3>
                   <p className="text-xs text-purple-800/80 leading-relaxed max-w-sm mx-auto mt-1">
-                    This memory capsule is private and already locked between{' '}
-                    <strong className="text-purple-950">{lockedCapsuleUsers?.[0]?.name}</strong> and{' '}
-                    <strong className="text-purple-950">{lockedCapsuleUsers?.[1]?.name}</strong>.
-                    LilacVault capsules are strictly private spaces reserved for 2 paired members only.
+                    This vault is locked. LilacVault memory capsules are strictly private spaces reserved for 2 paired members only.
                   </p>
                 </div>
 
@@ -677,7 +674,7 @@ export const OnboardingModal: React.FC<{
                       className="text-[11px] text-purple-600 hover:text-purple-900 font-semibold underline inline-flex items-center gap-1"
                     >
                       <Key className="w-3 h-3" />
-                      <span>Are you {lockedCapsuleUsers?.[0]?.name} or {lockedCapsuleUsers?.[1]?.name} restoring on a new phone? Enter PIN</span>
+                      <span>Already a member restoring on a new phone? Enter PIN</span>
                     </button>
                   ) : (
                     <div className="space-y-2 mt-2 p-3 bg-purple-50/80 rounded-2xl border border-purple-200 text-left">
