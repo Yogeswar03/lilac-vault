@@ -52,7 +52,7 @@ interface VaultContextType {
   deleteBucketItem: (id: string) => Promise<void>;
   isLoading: boolean;
   isDemoMode: boolean;
-  createVault: (vaultName: string, hostName: string, avatar: string) => Promise<void>;
+  createVault: (vaultName: string, hostName: string, avatar: string, customPasscode?: string) => Promise<void>;
   joinVault: (accessCode: string, memberName: string, avatar: string) => Promise<{ success: boolean; error?: string }>;
   startDemoMode: () => Promise<void>;
   switchActiveUser: (userId: string) => void;
@@ -64,8 +64,9 @@ interface VaultContextType {
   sendChatMessage: (text: string, type?: 'text' | 'sparkle_burst') => Promise<void>;
   deleteChatMessage: (msgId: string) => Promise<void>;
   updateUserProfile: (userId: string, newName: string, newAvatar: string) => Promise<void>;
-  loginUser: (userId: string) => void;
-  loginWithCode: (accessCode: string) => Promise<{ success: boolean; error?: string; users?: User[] }>;
+  loginUser: (userId: string, pin?: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithCode: (accessCode: string) => Promise<{ success: boolean; error?: string; users?: User[]; vault?: Vault }>;
+  verifyVaultPasscode: (pin: string) => boolean;
   logoutUser: () => void;
   unreadChatCount: number;
   markChatAsRead: () => Promise<void>;
@@ -113,29 +114,46 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const rawUrlCode = urlParams ? (urlParams.get('join') || urlParams.get('code')) : null;
       const inviteCodeFromUrl = rawUrlCode ? extractCodeFromUrlOrInput(rawUrlCode) : null;
 
+      const localVaultCode = typeof window !== 'undefined' ? localStorage.getItem('lilac_vault_code') : null;
+      const localVaultId = typeof window !== 'undefined' ? localStorage.getItem('lilac_vault_id') : null;
+
+      // 0. ABSOLUTE PRIVACY GUARD: If this is an unauthenticated visitor with no invite code and no local vault,
+      // never fetch remote cloud data. Show clean onboarding immediately!
+      if (!inviteCodeFromUrl && !localVaultCode && !localVaultId) {
+        setVault(null);
+        setCurrentUser(null);
+        setMemories([]);
+        setChatMessages([]);
+        setIsLoading(false);
+        return;
+      }
+
       // 1. FAST PATH: Instantly hydrate from local IndexedDB cache (<15ms)
       try {
-        const [localVault, localMems, localMsgs] = await Promise.all([
-          getLocalVault(inviteCodeFromUrl || undefined),
-          getLocalMemories(),
-          getLocalChatMessages(),
-        ]);
+        const localVault = await getLocalVault(inviteCodeFromUrl || undefined);
 
         if (localVault) {
           setVault(localVault);
-          setMemories(localMems);
-          setChatMessages(localMsgs);
           const activeId = getActiveUserId();
           const foundUser = localVault.users.find((u) => u.id === activeId);
+
           if (foundUser) {
             setCurrentUser(foundUser);
-          } else if (localVault.users.length > 0) {
-            setCurrentUser(localVault.users[0]);
-            dbSetActiveUserId(localVault.users[0].id);
+            const [localMems, localMsgs] = await Promise.all([
+              getLocalMemories(localVault.id),
+              getLocalChatMessages(localVault.id),
+            ]);
+            setMemories(localMems);
+            setChatMessages(localMsgs);
+          } else {
+            // Unauthenticated on this device: do NOT auto-login as user 0!
+            setCurrentUser(null);
+            setMemories([]);
+            setChatMessages([]);
           }
+
           const isDemo = localStorage.getItem('lilac_is_demo') === 'true' && localVault.id === 'vault_demo_lavender';
           setIsDemoMode(isDemo);
-          // UI renders immediately without waiting for server network latency!
           setIsLoading(false);
         }
       } catch (err) {
@@ -148,33 +166,51 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const invitedVault = await getVaultByCode(inviteCodeFromUrl);
           if (invitedVault) {
             setVault(invitedVault);
-            const [allMems, allMsgs] = await Promise.all([getAllMemories(), getAllChatMessages()]);
-            setMemories(allMems);
-            setChatMessages(allMsgs);
             setIsDemoMode(false);
             localStorage.removeItem('lilac_is_demo');
+
             const activeId = getActiveUserId();
             const foundUser = invitedVault.users.find((u) => u.id === activeId);
-            setCurrentUser(foundUser || null);
-          }
-        } else {
-          const [remoteVault, remoteMems, remoteMsgs] = await Promise.all([
-            getVault(),
-            getAllMemories(),
-            getAllChatMessages(),
-          ]);
 
+            if (foundUser) {
+              setCurrentUser(foundUser);
+              const [allMems, allMsgs] = await Promise.all([
+                getAllMemories(invitedVault.id),
+                getAllChatMessages(invitedVault.id),
+              ]);
+              setMemories(allMems);
+              setChatMessages(allMsgs);
+            } else {
+              // Third party or partner joining: NEVER populate private memories into state!
+              setCurrentUser(null);
+              setMemories([]);
+              setChatMessages([]);
+            }
+          }
+        } else if (localVaultCode || localVaultId) {
+          const remoteVault = await getVault();
           if (remoteVault) {
             setVault(remoteVault);
-            syncCurrentUserFromVault(remoteVault);
+            const activeId = getActiveUserId();
+            const foundUser = remoteVault.users.find((u) => u.id === activeId);
+
+            if (foundUser) {
+              setCurrentUser(foundUser);
+              syncCurrentUserFromVault(remoteVault);
+              const [remoteMems, remoteMsgs] = await Promise.all([
+                getAllMemories(remoteVault.id),
+                getAllChatMessages(remoteVault.id),
+              ]);
+              setMemories(remoteMems);
+              setChatMessages(remoteMsgs);
+            } else {
+              setCurrentUser(null);
+              setMemories([]);
+              setChatMessages([]);
+            }
+
             const isDemo = localStorage.getItem('lilac_is_demo') === 'true' && remoteVault.id === 'vault_demo_lavender';
             setIsDemoMode(isDemo);
-          }
-          if (remoteMems && remoteMems.length > 0) {
-            setMemories(remoteMems);
-          }
-          if (remoteMsgs && remoteMsgs.length > 0) {
-            setChatMessages(remoteMsgs);
           }
         }
       } catch (err) {
@@ -188,8 +224,11 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Background sync polling fallback across mobile & desktop
     const interval = setInterval(async () => {
       try {
+        const activeId = getActiveUserId();
+        if (!activeId) return; // Strict privacy: do NOT poll or load memories if unauthenticated!
+
         const remoteVault = await getVault();
-        if (remoteVault) {
+        if (remoteVault && remoteVault.users.some((u) => u.id === activeId)) {
           setVault((prev) => {
             if (JSON.stringify(prev) !== JSON.stringify(remoteVault)) {
               return remoteVault;
@@ -197,18 +236,19 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             return prev;
           });
           syncCurrentUserFromVault(remoteVault);
-          const remoteMems = await getAllMemories();
+
+          const remoteMems = await getAllMemories(remoteVault.id);
           setMemories((prev) => {
             if (prev.length !== remoteMems.length || JSON.stringify(prev) !== JSON.stringify(remoteMems)) {
               return remoteMems;
             }
             return prev;
           });
-          const remoteMsgs = await getAllChatMessages();
+
+          const remoteMsgs = await getAllChatMessages(remoteVault.id);
           setChatMessages((prev) => {
             if (remoteMsgs.length > prev.length) {
               const newArrivals = remoteMsgs.slice(prev.length);
-              const activeId = getActiveUserId();
               const fromPartner = newArrivals.filter((m) => m.senderId !== activeId);
               if (fromPartner.length > 0) {
                 playMessageChime();
@@ -231,32 +271,43 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (isSupabaseConfigured()) {
       unsubscribeRealtime = supabaseSubscribeToChanges({
         onVaultChange: async () => {
+          const activeId = getActiveUserId();
+          if (!activeId) return;
           const v = await getVault();
-          if (v) {
+          if (v && v.users.some((u) => u.id === activeId)) {
             setVault(v);
             syncCurrentUserFromVault(v);
           }
         },
         onMemoryChange: async () => {
-          const m = await getAllMemories();
-          setMemories(m);
+          const activeId = getActiveUserId();
+          if (!activeId) return;
+          const v = await getVault();
+          if (v && v.users.some((u) => u.id === activeId)) {
+            const m = await getAllMemories(v.id);
+            setMemories(m);
+          }
         },
         onChatChange: async () => {
-          const c = await getAllChatMessages();
-          setChatMessages((prev) => {
-            if (c.length > prev.length) {
-              const newArrivals = c.slice(prev.length);
-              const activeId = getActiveUserId();
-              const fromPartner = newArrivals.filter((m) => m.senderId !== activeId);
-              if (fromPartner.length > 0) {
-                playMessageChime();
+          const activeId = getActiveUserId();
+          if (!activeId) return;
+          const v = await getVault();
+          if (v && v.users.some((u) => u.id === activeId)) {
+            const c = await getAllChatMessages(v.id);
+            setChatMessages((prev) => {
+              if (c.length > prev.length) {
+                const newArrivals = c.slice(prev.length);
+                const fromPartner = newArrivals.filter((m) => m.senderId !== activeId);
+                if (fromPartner.length > 0) {
+                  playMessageChime();
+                }
+                if (newArrivals.some((m) => m.type === 'sparkle_burst')) {
+                  triggerSparkleExplosion();
+                }
               }
-              if (newArrivals.some((m) => m.type === 'sparkle_burst')) {
-                triggerSparkleExplosion();
-              }
-            }
-            return c;
-          });
+              return c;
+            });
+          }
         },
       });
     }
@@ -496,9 +547,16 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Create a new vault as Host
-  const createVault = async (vaultName: string, hostName: string, avatar: string) => {
+  const createVault = async (
+    vaultName: string,
+    hostName: string,
+    avatar: string,
+    customPasscode?: string
+  ) => {
     const codeNum = Math.floor(100 + Math.random() * 900);
     const accessCode = `LILAC-${codeNum}`;
+    const defaultPin = codeNum.toString().padStart(4, '0');
+    const passcode = (customPasscode && customPasscode.trim().length >= 4) ? customPasscode.trim() : defaultPin;
 
     const hostUser: User = {
       id: `user_${Date.now()}`,
@@ -516,14 +574,22 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       createdAt: new Date().toISOString(),
       users: [hostUser],
       isLocked: false,
+      passcode,
+      folders: [],
+      bucketList: [],
     };
 
     await saveVault(newVault);
     setVault(newVault);
     setCurrentUser(hostUser);
     dbSetActiveUserId(hostUser.id);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('lilac_vault_id', newVault.id);
+      localStorage.setItem('lilac_vault_code', newVault.accessCode);
+      localStorage.setItem('lilac_active_user', hostUser.id);
+      localStorage.removeItem('lilac_is_demo');
+    }
     setIsDemoMode(false);
-    localStorage.removeItem('lilac_is_demo');
 
     triggerSparkleExplosion();
   };
@@ -571,6 +637,19 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setVault(updatedVault);
     setCurrentUser(memberUser);
     dbSetActiveUserId(memberUser.id);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('lilac_vault_id', updatedVault.id);
+      localStorage.setItem('lilac_vault_code', updatedVault.accessCode);
+      localStorage.setItem('lilac_active_user', memberUser.id);
+      localStorage.removeItem('lilac_is_demo');
+    }
+
+    const [mems, msgs] = await Promise.all([
+      getAllMemories(updatedVault.id),
+      getAllChatMessages(updatedVault.id),
+    ]);
+    setMemories(mems);
+    setChatMessages(msgs);
 
     triggerSparkleExplosion();
 
@@ -582,13 +661,17 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsLoading(true);
     await seedDemoData();
     const demoVault = await getVault();
-    const demoMemories = await getAllMemories();
-    const demoMsgs = await getAllChatMessages();
-
-    setVault(demoVault);
-    setMemories(demoMemories);
-    setChatMessages(demoMsgs);
-    setCurrentUser(demoVault?.users[0] || null);
+    if (demoVault) {
+      setVault(demoVault);
+      const demoMemories = await getAllMemories(demoVault.id);
+      const demoMsgs = await getAllChatMessages(demoVault.id);
+      setMemories(demoMemories);
+      setChatMessages(demoMsgs);
+      setCurrentUser(demoVault.users[0] || null);
+      if (demoVault.users[0]) {
+        dbSetActiveUserId(demoVault.users[0].id);
+      }
+    }
     setIsDemoMode(true);
     setIsLoading(false);
 
@@ -740,10 +823,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Sync Cloud Data
   const syncCloud = async (): Promise<{ success: boolean; error?: string }> => {
     const res = await syncLocalToCloud();
-    if (res.success) {
-      const allMems = await getAllMemories();
+    if (res.success && vault) {
+      const allMems = await getAllMemories(vault.id);
       setMemories(allMems);
-      const allMsgs = await getAllChatMessages();
+      const allMsgs = await getAllChatMessages(vault.id);
       setChatMessages(allMsgs);
     }
     return res;
@@ -779,15 +862,51 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     triggerSparkleExplosion();
   };
 
+  // Verify Vault Passcode / PIN
+  const verifyVaultPasscode = (pin: string): boolean => {
+    if (!vault) return false;
+    const cleanPin = pin.trim();
+    const expectedPin = vault.passcode || vault.accessCode.replace(/\D/g, '').slice(-4).padStart(4, '0');
+    return cleanPin === expectedPin || cleanPin === vault.accessCode.replace(/\D/g, '');
+  };
+
   // Direct login for existing user
-  const loginUser = (userId: string) => {
-    if (!vault) return;
+  const loginUser = async (userId: string, pin?: string): Promise<{ success: boolean; error?: string }> => {
+    if (!vault) return { success: false, error: 'No active capsule found.' };
     const user = vault.users.find((u) => u.id === userId);
-    if (user) {
-      setCurrentUser(user);
-      dbSetActiveUserId(user.id);
-      triggerSparkleExplosion();
+    if (!user) return { success: false, error: 'User profile not found in capsule.' };
+
+    const activeId = getActiveUserId();
+    // If device is unverified as this user and capsule is full (2/2)
+    if (vault.users.length >= 2 && activeId !== userId) {
+      const validPin = vault.passcode || vault.accessCode.replace(/\D/g, '').slice(-4).padStart(4, '0');
+      if (pin !== undefined && pin.trim() !== validPin.trim()) {
+        return { success: false, error: 'Incorrect 4-digit security PIN! Access denied.' };
+      }
     }
+
+    setCurrentUser(user);
+    dbSetActiveUserId(user.id);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('lilac_vault_id', vault.id);
+      localStorage.setItem('lilac_vault_code', vault.accessCode);
+      localStorage.setItem('lilac_active_user', user.id);
+    }
+
+    // Load memories and chat only after successful authentication!
+    try {
+      const [mems, msgs] = await Promise.all([
+        getAllMemories(vault.id),
+        getAllChatMessages(vault.id),
+      ]);
+      setMemories(mems);
+      setChatMessages(msgs);
+    } catch (e) {
+      console.error('Error loading vault data after login:', e);
+    }
+
+    triggerSparkleExplosion();
+    return { success: true };
   };
 
   // Delete Chat Message
@@ -796,8 +915,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setChatMessages((prev) => prev.filter((m) => m.id !== msgId));
   };
 
-  // Login using Access Code
-  const loginWithCode = async (accessCode: string): Promise<{ success: boolean; error?: string; users?: User[] }> => {
+  // Login using Access Code (capsule lookup without leaking memories prematurely)
+  const loginWithCode = async (
+    accessCode: string
+  ): Promise<{ success: boolean; error?: string; users?: User[]; vault?: Vault }> => {
     const cleanCode = accessCode.trim().toUpperCase();
     const remoteVault = await getVaultByCode(cleanCode);
     if (!remoteVault) {
@@ -811,20 +932,25 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     setVault(remoteVault);
     setIsDemoMode(false);
-    localStorage.removeItem('lilac_is_demo');
-    const allMems = await getAllMemories();
-    setMemories(allMems);
-    const allMsgs = await getAllChatMessages();
-    setChatMessages(allMsgs);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('lilac_is_demo');
+    }
+    // DO NOT load memories or chat messages here! Keep them empty until user is authenticated!
+    setMemories([]);
+    setChatMessages([]);
 
-    return { success: true, users: remoteVault.users };
+    return { success: true, users: remoteVault.users, vault: remoteVault };
   };
 
-  // Logout active user session (preserves all data, locks view)
+  // Logout active user session (preserves all data in cloud/cache, locks view)
   const logoutUser = () => {
     setCurrentUser(null);
     dbSetActiveUserId('');
-    localStorage.removeItem('lilac_active_user');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('lilac_active_user');
+    }
+    setMemories([]);
+    setChatMessages([]);
   };
 
   // Reset Everything
@@ -873,6 +999,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateUserProfile,
         loginUser,
         loginWithCode,
+        verifyVaultPasscode,
         logoutUser,
         triggerSparkleExplosion,
         resetAllData,

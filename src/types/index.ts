@@ -17,6 +17,7 @@ export interface Vault {
   isLocked: boolean; // Once 2 users join, locked = true (strictly 2 users)
   folders?: string[];
   bucketList?: BucketItem[];
+  passcode?: string; // 4-digit security PIN for vault owner recovery
 }
 
 export type BucketCategory = 'places' | 'cafe' | 'adventure' | 'date' | 'general';

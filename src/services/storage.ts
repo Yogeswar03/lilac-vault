@@ -131,6 +131,7 @@ export async function saveVault(vault: Vault): Promise<void> {
 // Get Vault (Supabase Cloud first, then Local API, then IndexedDB)
 export async function getVault(targetIdOrCode?: string): Promise<Vault | null> {
   const activeLookup = targetIdOrCode || (typeof window !== 'undefined' ? (localStorage.getItem('lilac_vault_code') || localStorage.getItem('lilac_vault_id') || undefined) : undefined);
+  if (!activeLookup || !activeLookup.trim()) return null;
 
   if (isSupabaseConfigured()) {
     try {
@@ -168,17 +169,9 @@ export async function getVault(targetIdOrCode?: string): Promise<Vault | null> {
     const req = store.getAll();
     req.onsuccess = () => {
       const vaults: Vault[] = req.result || [];
-      if (vaults.length > 0) {
-        if (targetIdOrCode) {
-          const clean = targetIdOrCode.trim().toUpperCase();
-          const match = vaults.find((v) => v.id === targetIdOrCode || v.accessCode?.trim().toUpperCase() === clean);
-          resolve(match || vaults[vaults.length - 1]);
-        } else {
-          resolve(vaults[vaults.length - 1]);
-        }
-      } else {
-        resolve(null);
-      }
+      const clean = activeLookup.trim().toUpperCase();
+      const match = vaults.find((v) => v.id === activeLookup || v.accessCode?.trim().toUpperCase() === clean);
+      resolve(match || null);
     };
     req.onerror = () => reject(req.error);
   });
@@ -187,6 +180,8 @@ export async function getVault(targetIdOrCode?: string): Promise<Vault | null> {
 // Fast Local Vault Retrieval (IndexedDB only, <10ms for instant app launch)
 export async function getLocalVault(targetIdOrCode?: string): Promise<Vault | null> {
   const activeLookup = targetIdOrCode || (typeof window !== 'undefined' ? (localStorage.getItem('lilac_vault_code') || localStorage.getItem('lilac_vault_id') || undefined) : undefined);
+  if (!activeLookup || !activeLookup.trim()) return null;
+
   try {
     const db = await openDB();
     return new Promise((resolve) => {
@@ -195,17 +190,9 @@ export async function getLocalVault(targetIdOrCode?: string): Promise<Vault | nu
       const req = store.getAll();
       req.onsuccess = () => {
         const vaults: Vault[] = req.result || [];
-        if (vaults.length > 0) {
-          if (activeLookup) {
-            const clean = activeLookup.trim().toUpperCase();
-            const match = vaults.find((v) => v.id === activeLookup || v.accessCode?.trim().toUpperCase() === clean);
-            resolve(match || vaults[vaults.length - 1]);
-          } else {
-            resolve(vaults[vaults.length - 1]);
-          }
-        } else {
-          resolve(null);
-        }
+        const clean = activeLookup.trim().toUpperCase();
+        const match = vaults.find((v) => v.id === activeLookup || v.accessCode?.trim().toUpperCase() === clean);
+        resolve(match || null);
       };
       req.onerror = () => resolve(null);
     });
@@ -361,10 +348,13 @@ export async function saveMemory(memory: Memory): Promise<void> {
 }
 
 // Get All Memories (Supabase Cloud first, then Local API, then IndexedDB)
-export async function getAllMemories(): Promise<Memory[]> {
+export async function getAllMemories(vaultId?: string): Promise<Memory[]> {
+  const activeVaultId = vaultId || (typeof window !== 'undefined' ? localStorage.getItem('lilac_vault_id') || undefined : undefined);
+  if (!activeVaultId) return [];
+
   if (isSupabaseConfigured()) {
     try {
-      const cloudMems = await supabaseGetAllMemories();
+      const cloudMems = await supabaseGetAllMemories(activeVaultId);
       if (cloudMems && cloudMems.length > 0) {
         const db = await openDB();
         const tx = db.transaction(STORE_MEMORIES, 'readwrite');
@@ -380,7 +370,8 @@ export async function getAllMemories(): Promise<Memory[]> {
       if (res.ok) {
         const data = await res.json();
         if (data.memories) {
-          const items = data.memories as Memory[];
+          const all = data.memories as Memory[];
+          const items = all.filter((m) => m.vaultId === activeVaultId);
           items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
           const db = await openDB();
           const tx = db.transaction(STORE_MEMORIES, 'readwrite');
@@ -399,7 +390,8 @@ export async function getAllMemories(): Promise<Memory[]> {
     const store = tx.objectStore(STORE_MEMORIES);
     const req = store.getAll();
     req.onsuccess = () => {
-      const items = (req.result as Memory[]) || [];
+      const all = (req.result as Memory[]) || [];
+      const items = all.filter((m) => m.vaultId === activeVaultId);
       items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       resolve(items);
     };
@@ -408,7 +400,10 @@ export async function getAllMemories(): Promise<Memory[]> {
 }
 
 // Fast Local Memories Retrieval (IndexedDB only, <10ms for instant app launch)
-export async function getLocalMemories(): Promise<Memory[]> {
+export async function getLocalMemories(vaultId?: string): Promise<Memory[]> {
+  const activeVaultId = vaultId || (typeof window !== 'undefined' ? localStorage.getItem('lilac_vault_id') || undefined : undefined);
+  if (!activeVaultId) return [];
+
   try {
     const db = await openDB();
     return new Promise((resolve) => {
@@ -416,7 +411,8 @@ export async function getLocalMemories(): Promise<Memory[]> {
       const store = tx.objectStore(STORE_MEMORIES);
       const req = store.getAll();
       req.onsuccess = () => {
-        const items = (req.result as Memory[]) || [];
+        const all = (req.result as Memory[]) || [];
+        const items = all.filter((m) => m.vaultId === activeVaultId);
         items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         resolve(items);
       };
@@ -483,10 +479,13 @@ export async function saveChatMessage(message: ChatMessage): Promise<void> {
   });
 }
 
-export async function getAllChatMessages(): Promise<ChatMessage[]> {
+export async function getAllChatMessages(vaultId?: string): Promise<ChatMessage[]> {
+  const activeVaultId = vaultId || (typeof window !== 'undefined' ? localStorage.getItem('lilac_vault_id') || undefined : undefined);
+  if (!activeVaultId) return [];
+
   if (isSupabaseConfigured()) {
     try {
-      const cloudMsgs = await supabaseGetAllChatMessages();
+      const cloudMsgs = await supabaseGetAllChatMessages(activeVaultId);
       if (cloudMsgs && cloudMsgs.length > 0) {
         return cloudMsgs;
       }
@@ -499,7 +498,8 @@ export async function getAllChatMessages(): Promise<ChatMessage[]> {
       if (res.ok) {
         const data = await res.json();
         if (data.messages) {
-          const items = data.messages as ChatMessage[];
+          const all = data.messages as ChatMessage[];
+          const items = all.filter((m) => m.vaultId === activeVaultId);
           items.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
           return items;
         }
@@ -515,7 +515,8 @@ export async function getAllChatMessages(): Promise<ChatMessage[]> {
     const store = tx.objectStore(STORE_MESSAGES);
     const req = store.getAll();
     req.onsuccess = () => {
-      const items = (req.result as ChatMessage[]) || [];
+      const all = (req.result as ChatMessage[]) || [];
+      const items = all.filter((m) => m.vaultId === activeVaultId);
       items.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       resolve(items);
     };
@@ -524,7 +525,10 @@ export async function getAllChatMessages(): Promise<ChatMessage[]> {
 }
 
 // Fast Local Chat Messages Retrieval (IndexedDB only, <10ms for instant app launch)
-export async function getLocalChatMessages(): Promise<ChatMessage[]> {
+export async function getLocalChatMessages(vaultId?: string): Promise<ChatMessage[]> {
+  const activeVaultId = vaultId || (typeof window !== 'undefined' ? localStorage.getItem('lilac_vault_id') || undefined : undefined);
+  if (!activeVaultId) return [];
+
   try {
     const db = await openDB();
     return new Promise((resolve) => {
@@ -532,7 +536,8 @@ export async function getLocalChatMessages(): Promise<ChatMessage[]> {
       const store = tx.objectStore(STORE_MESSAGES);
       const req = store.getAll();
       req.onsuccess = () => {
-        const items = (req.result as ChatMessage[]) || [];
+        const all = (req.result as ChatMessage[]) || [];
+        const items = all.filter((m) => m.vaultId === activeVaultId);
         items.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
         resolve(items);
       };

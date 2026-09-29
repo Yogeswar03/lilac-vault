@@ -103,6 +103,7 @@ export async function supabaseSaveVault(vault: Vault): Promise<void> {
         ...u,
         customFolders: vault.folders || [],
         bucketList: vault.bucketList || [],
+        passcode: vault.passcode || '',
       };
     }
     return u;
@@ -163,17 +164,18 @@ export async function supabaseGetVault(targetIdOrCode?: string): Promise<Vault |
   const client = getSupabaseClient();
   if (!client) return null;
 
+  // STRICT PRIVACY: Never return a vault to an unauthenticated stranger without an explicit code/ID!
+  if (!targetIdOrCode || !targetIdOrCode.trim()) {
+    return null;
+  }
+
+  const clean = targetIdOrCode.trim().toUpperCase();
   let query = client.from('vaults').select('*');
 
-  if (targetIdOrCode) {
-    const clean = targetIdOrCode.trim().toUpperCase();
-    if (clean.startsWith('LILAC-')) {
-      query = query.eq('access_code', clean);
-    } else {
-      query = query.eq('id', targetIdOrCode);
-    }
+  if (clean.startsWith('LILAC-')) {
+    query = query.eq('access_code', clean);
   } else {
-    query = query.order('created_at', { ascending: false });
+    query = query.eq('id', targetIdOrCode);
   }
 
   const { data, error } = await query.limit(1).maybeSingle();
@@ -188,6 +190,7 @@ export async function supabaseGetVault(targetIdOrCode?: string): Promise<Vault |
   const users = data.users || [];
   const folders = (users[0] as any)?.customFolders || [];
   const bucketList = (users[0] as any)?.bucketList || [];
+  const passcode = (users[0] as any)?.passcode || undefined;
 
   return {
     id: data.id,
@@ -198,6 +201,7 @@ export async function supabaseGetVault(targetIdOrCode?: string): Promise<Vault |
     isLocked: data.is_locked,
     folders,
     bucketList,
+    passcode,
   };
 }
 
@@ -224,6 +228,7 @@ export async function supabaseGetVaultByCode(accessCode: string): Promise<Vault 
   const users = data.users || [];
   const folders = (users[0] as any)?.customFolders || [];
   const bucketList = (users[0] as any)?.bucketList || [];
+  const passcode = (users[0] as any)?.passcode || undefined;
 
   return {
     id: data.id,
@@ -234,6 +239,7 @@ export async function supabaseGetVaultByCode(accessCode: string): Promise<Vault 
     isLocked: data.is_locked,
     folders,
     bucketList,
+    passcode,
   };
 }
 
@@ -276,11 +282,12 @@ export async function supabaseGetAllMemories(vaultId?: string): Promise<Memory[]
   const client = getSupabaseClient();
   if (!client) return [];
 
-  let query = client.from('memories').select('*').order('date', { ascending: false });
-  if (vaultId) {
-    query = query.eq('vault_id', vaultId);
+  // STRICT PRIVACY: Memories must be strictly scoped to the active vaultId!
+  if (!vaultId || !vaultId.trim()) {
+    return [];
   }
 
+  let query = client.from('memories').select('*').eq('vault_id', vaultId.trim()).order('date', { ascending: false });
   const { data, error } = await query;
 
   if (error) {
@@ -353,11 +360,12 @@ export async function supabaseGetAllChatMessages(vaultId?: string): Promise<Chat
   const client = getSupabaseClient();
   if (!client) return [];
 
-  let query = client.from('chat_messages').select('*').order('created_at', { ascending: true });
-  if (vaultId) {
-    query = query.eq('vault_id', vaultId);
+  // STRICT PRIVACY: Chat messages must be strictly scoped to the active vaultId!
+  if (!vaultId || !vaultId.trim()) {
+    return [];
   }
 
+  let query = client.from('chat_messages').select('*').eq('vault_id', vaultId.trim()).order('created_at', { ascending: true });
   const { data, error } = await query;
 
   if (error) {
