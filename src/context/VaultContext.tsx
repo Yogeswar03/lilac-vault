@@ -135,10 +135,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         if (localVault) {
           setVault(localVault);
+          const isDemo = localStorage.getItem('lilac_is_demo') === 'true' && localVault.id === 'vault_demo_lavender';
+          const isSessionUnlocked = typeof window !== 'undefined' && sessionStorage.getItem('lilac_session_unlocked') === 'true';
           const activeId = getActiveUserId();
           const foundUser = localVault.users.find((u) => u.id === activeId);
 
-          if (foundUser) {
+          if ((isDemo || isSessionUnlocked) && foundUser) {
             setCurrentUser(foundUser);
             const [localMems, localMsgs] = await Promise.all([
               getLocalMemories(localVault.id),
@@ -147,13 +149,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setMemories(localMems);
             setChatMessages(localMsgs);
           } else {
-            // Unauthenticated on this device: do NOT auto-login as user 0!
+            // Require PIN entry to unlock and enter the capsule!
             setCurrentUser(null);
             setMemories([]);
             setChatMessages([]);
           }
 
-          const isDemo = localStorage.getItem('lilac_is_demo') === 'true' && localVault.id === 'vault_demo_lavender';
           setIsDemoMode(isDemo);
           setIsLoading(false);
         }
@@ -192,10 +193,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const remoteVault = await getVault();
           if (remoteVault) {
             setVault(remoteVault);
+            const isDemo = localStorage.getItem('lilac_is_demo') === 'true' && remoteVault.id === 'vault_demo_lavender';
+            const isSessionUnlocked = typeof window !== 'undefined' && sessionStorage.getItem('lilac_session_unlocked') === 'true';
             const activeId = getActiveUserId();
             const foundUser = remoteVault.users.find((u) => u.id === activeId);
 
-            if (foundUser) {
+            if ((isDemo || isSessionUnlocked) && foundUser) {
               setCurrentUser(foundUser);
               syncCurrentUserFromVault(remoteVault);
               const [remoteMems, remoteMsgs] = await Promise.all([
@@ -210,7 +213,6 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               setChatMessages([]);
             }
 
-            const isDemo = localStorage.getItem('lilac_is_demo') === 'true' && remoteVault.id === 'vault_demo_lavender';
             setIsDemoMode(isDemo);
           }
         }
@@ -630,6 +632,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       localStorage.setItem('lilac_vault_id', newVault.id);
       localStorage.setItem('lilac_vault_code', newVault.accessCode);
       localStorage.setItem('lilac_active_user', hostUser.id);
+      sessionStorage.setItem('lilac_session_unlocked', 'true');
       localStorage.removeItem('lilac_is_demo');
     }
     setIsDemoMode(false);
@@ -684,6 +687,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       localStorage.setItem('lilac_vault_id', updatedVault.id);
       localStorage.setItem('lilac_vault_code', updatedVault.accessCode);
       localStorage.setItem('lilac_active_user', memberUser.id);
+      sessionStorage.setItem('lilac_session_unlocked', 'true');
       localStorage.removeItem('lilac_is_demo');
     }
 
@@ -713,6 +717,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setCurrentUser(demoVault.users[0] || null);
       if (demoVault.users[0]) {
         dbSetActiveUserId(demoVault.users[0].id);
+      }
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('lilac_session_unlocked', 'true');
       }
     }
     setIsDemoMode(true);
@@ -950,12 +957,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const user = vault.users.find((u) => u.id === userId);
     if (!user) return { success: false, error: 'User profile not found in capsule.' };
 
-    const activeId = getActiveUserId();
-    // If device is unverified as this user and capsule is full (2/2)
-    if (vault.users.length >= 2 && activeId !== userId) {
-      if (pin !== undefined && !verifyVaultPasscode(pin)) {
-        return { success: false, error: 'Incorrect 4-digit security PIN! Access denied.' };
-      }
+    if (pin !== undefined && !verifyVaultPasscode(pin)) {
+      return { success: false, error: 'Incorrect 4-digit security PIN! Access denied.' };
     }
 
     setCurrentUser(user);
@@ -964,6 +967,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       localStorage.setItem('lilac_vault_id', vault.id);
       localStorage.setItem('lilac_vault_code', vault.accessCode);
       localStorage.setItem('lilac_active_user', user.id);
+      sessionStorage.setItem('lilac_session_unlocked', 'true');
     }
 
     // Load memories and chat only after successful authentication!
@@ -1025,6 +1029,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     dbSetActiveUserId('');
     if (typeof window !== 'undefined') {
       localStorage.removeItem('lilac_active_user');
+      sessionStorage.removeItem('lilac_session_unlocked');
     }
     setMemories([]);
     setChatMessages([]);

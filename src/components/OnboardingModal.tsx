@@ -5,6 +5,7 @@ import { useVault } from '../context/VaultContext';
 import { isSupabaseConfigured } from '../services/supabase';
 import { LavenderLogo } from './LavenderLogo';
 import { extractCodeFromUrlOrInput, shareInviteLink, copyInviteLink } from '../services/shareInvite';
+import { getActiveUserId } from '../services/storage';
 
 const AVATAR_OPTIONS = ['🪻', '☕', '🌿', '✨', '📸', '🌙', '🎨', '🧁', '🌊', '🍓', '🧸', '🌸'];
 
@@ -180,22 +181,58 @@ export const OnboardingModal: React.FC<{
   };
 
   const handleVerifyPinForRestore = () => {
+    handleUnlockAndEnter();
+  };
+
+  const handleUnlockAndEnter = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!pinInput.trim()) {
       setPinError('Please enter your 4-digit PIN!');
       return;
     }
     const isValid = verifyVaultPasscode(pinInput);
-    if (isValid) {
+    if (!isValid) {
+      setPinError('Incorrect 4-digit security PIN! Access denied.');
+      return;
+    }
+
+    setPinError('');
+    setIsSubmitting(true);
+
+    try {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('lilac_session_unlocked', 'true');
+      }
+
+      // Check which user to log into
+      const savedUserId = getActiveUserId();
+      const targetUser =
+        vault?.users.find((u) => u.id === savedUserId) ||
+        (vault?.users.length === 1 ? vault.users[0] : null);
+
+      if (targetUser) {
+        // Direct entry into capsule!
+        const res = await loginUser(targetUser.id, pinInput);
+        if (res.success) {
+          setIsPinVerified(true);
+          if (typeof window !== 'undefined' && window.location.search) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+          return;
+        }
+      }
+
+      // If multiple users and none saved on this device yet, unlock so user can pick their profile
       setIsPinVerified(true);
-      setPinError('');
-      setSuccessNotice('✨ PIN verified! Tap your profile to restore your session:');
       if (lockedCapsuleUsers) {
         setCodeMatchedUsers(lockedCapsuleUsers);
       } else if (vault?.users) {
         setCodeMatchedUsers(vault.users);
       }
-    } else {
-      setPinError('Incorrect 4-digit security PIN! Access denied.');
+    } catch {
+      setPinError('Failed to enter capsule. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -370,36 +407,39 @@ export const OnboardingModal: React.FC<{
               </p>
             </div>
 
-            {vault.users.length >= 2 && !isPinVerified ? (
-              <div className="space-y-3 p-4 rounded-2xl bg-purple-50/90 border border-purple-200 text-center">
+            {!isPinVerified ? (
+              <div className="space-y-3.5 p-4 rounded-2xl bg-purple-50/90 border border-purple-200 text-center">
                 <div className="w-12 h-12 mx-auto rounded-2xl bg-purple-100 flex items-center justify-center text-2xl border border-purple-200 shadow-xs">
                   🔒
                 </div>
                 <div>
                   <h4 className="font-bold text-sm text-purple-950 font-cute">This Vault is Locked 🔒</h4>
                   <p className="text-xs text-purple-800/80 mt-1 max-w-xs mx-auto">
-                    This vault is locked. Enter your 4-digit security PIN to unlock:
+                    Enter your 4-digit security PIN to enter your capsule:
                   </p>
                 </div>
 
-                <div className="flex gap-2 max-w-xs mx-auto">
-                  <input
-                    type="password"
-                    maxLength={8}
-                    value={pinInput}
-                    onChange={(e) => setPinInput(e.target.value)}
-                    placeholder="4-digit PIN"
-                    className="flex-1 px-3 py-2 rounded-xl border border-purple-300 text-purple-950 text-sm text-center font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleVerifyPinForRestore}
-                    className="px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs shadow-xs"
-                  >
-                    Unlock 🔓
-                  </button>
-                </div>
-                {pinError && <p className="text-[11px] text-rose-600 font-medium">⚠️ {pinError}</p>}
+                <form onSubmit={handleUnlockAndEnter} className="space-y-3 max-w-xs mx-auto">
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      maxLength={8}
+                      value={pinInput}
+                      onChange={(e) => setPinInput(e.target.value)}
+                      placeholder="4-digit PIN"
+                      autoFocus
+                      className="flex-1 px-3 py-2.5 rounded-xl border border-purple-300 text-purple-950 text-sm text-center font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white shadow-2xs"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-700 to-indigo-700 hover:brightness-105 text-white font-bold text-xs shadow-cute flex items-center gap-1 transition-all"
+                    >
+                      <span>{isSubmitting ? 'Entering...' : 'Enter 🔓'}</span>
+                    </button>
+                  </div>
+                  {pinError && <p className="text-[11px] text-rose-600 font-medium">⚠️ {pinError}</p>}
+                </form>
 
                 <div className="pt-2 border-t border-purple-200/60">
                   <button
@@ -681,7 +721,7 @@ export const OnboardingModal: React.FC<{
                       <label className="block text-[11px] font-bold text-purple-900 uppercase tracking-wider">
                         Enter 4-Digit Capsule PIN:
                       </label>
-                      <div className="flex gap-2">
+                      <form onSubmit={handleUnlockAndEnter} className="flex gap-2">
                         <input
                           type="password"
                           maxLength={8}
@@ -691,13 +731,13 @@ export const OnboardingModal: React.FC<{
                           className="flex-1 px-3 py-2 rounded-xl border border-purple-300 text-purple-950 text-sm font-mono tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
                         />
                         <button
-                          type="button"
-                          onClick={handleVerifyPinForRestore}
+                          type="submit"
+                          disabled={isSubmitting}
                           className="px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs shadow-xs"
                         >
-                          Verify PIN
+                          {isSubmitting ? 'Verifying...' : 'Verify PIN'}
                         </button>
-                      </div>
+                      </form>
                       {pinError && <p className="text-[11px] text-rose-600 font-medium">⚠️ {pinError}</p>}
                     </div>
                   )}
